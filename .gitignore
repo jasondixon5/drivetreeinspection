@@ -1,3 +1,6 @@
 .venv
 client_secret_*
 credentials.json
+__pycache__
+token.json
+inspect_results.csv
