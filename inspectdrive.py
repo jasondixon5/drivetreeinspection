@@ -43,34 +43,6 @@ def main():
 
   request_file_info(creds)
 
-def handle_items(items):
-
-  if not items:
-    print("No files found.")
-    return
-  # print("Files:")
-  try:
-    
-    # print(items)
-    with open('inspect_results.csv', 'a', newline='') as csvfile:
-        fieldnames = ['id', 'name', 'parents']
-        writer=csv.DictWriter(csvfile, fieldnames=fieldnames)
-        # writer.writeheader()
-        for item in items:
-
-          item_id = item['id']
-          item_name = item['name']
-          item_parents = item['parents'][0]
-
-          writer.writerow({
-            'id': item_id, 
-            'name': item_name,
-            'parents': item_parents
-            })
-         
-  except Exception as e:
-      print(f"Exception encountered when trying to write to file:\n\n{e}")
-
 def request_file_info(creds):
   call_count = 0
 
@@ -82,7 +54,7 @@ def request_file_info(creds):
         service.files()
         .list(
             pageSize=100, 
-            fields="nextPageToken, files(id, name, parents)",
+            fields="nextPageToken, files(kind, driveId, id, name, parents)",
             q="trashed=false and createdTime >= '2023-01-01T00:00:00'")
         .execute()
       )
@@ -99,6 +71,47 @@ def request_file_info(creds):
   except HttpError as error:
     # TODO(developer) - Handle errors from drive API.
     print(f"An error occurred: {error}")
+
+
+def handle_items(items):
+
+  if not items:
+    print("No files found.")
+    return
+  # print("Files:")
+  try:
+    
+    # print(items)
+    with open('inspect_results.csv', 'a', newline='') as csvfile:
+        fieldnames = ['kind', 'driveId', 'id', 'name', 'parents']
+        writer=csv.DictWriter(csvfile, fieldnames=fieldnames)
+        # writer.writeheader()
+        for item in items:
+          try:
+
+            item_id = item['id']
+            item_name = item['name']
+            item_parents = item['parents'][0] if item.get('parents') is not None else ''
+            item_kind = item['kind']
+            item_drive_id = item['driveId']
+
+            writer.writerow({
+              'kind': item_kind,
+              'driveId': item_drive_id,
+              'id': item_id, 
+              'name': item_name,
+              'parents': item_parents
+              })
+          except Exception as e:
+            print(f"Exception encountered when trying to write to file:\n")
+            print(item)
+            print(f"Exception: {e}")
+
+
+          
+  except Exception as e:
+      print(f"Exception encountered when trying to write to file:\n\n{e}")
+
 
   print("Finished drive inspection script.")
 
