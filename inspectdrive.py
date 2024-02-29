@@ -42,49 +42,6 @@ def main():
       token.write(creds.to_json())
 
   request_file_info(creds)
-  
-  # try:
-    
-
-  #   # Call the Drive v3 API
-  #   results = (
-  #       service.files()
-  #       .list(
-  #           pageSize=100, 
-  #           fields="nextPageToken, files(id, name)",
-  #           q="trashed=false")
-  #       .execute()
-  #   )
-  #   items = results.get("files", [])
-
-  #   handle_items(items)
-
-  #   page_token = results.get("nextPageToken")
-
-  #   print("Next page token", page_token)
-    
-  #   if page_token:
-      
-  #     results = (
-  #           service.files()
-  #           .list(
-  #               pageSize=100, 
-  #               fields="nextPageToken, files(id, name)",
-  #               q="trashed=false",
-  #               pageToken=page_token,)
-  #           .execute()
-  #     )
-  #     # print(results, '\n')
-
-  #     items = results.get("files", [])
-
-  #     handle_items(items)
-
-  
-  # except HttpError as error:
-  #   # TODO(developer) - Handle errors from drive API.
-  #   print(f"An error occurred: {error}")
-
 
 def handle_items(items):
 
@@ -96,13 +53,19 @@ def handle_items(items):
     
     # print(items)
     with open('inspect_results.csv', 'a', newline='') as csvfile:
-        fieldnames = ['id', 'name']
+        fieldnames = ['id', 'name', 'parents']
         writer=csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
+        # writer.writeheader()
         for item in items:
+
+          item_id = item['id']
+          item_name = item['name']
+          item_parents = item['parents'][0]
+
           writer.writerow({
-            'id': item['id'], 
-            'name': item['name'],
+            'id': item_id, 
+            'name': item_name,
+            'parents': item_parents
             })
         # writer.writerows(items)
         # writer.writerows([f"{item['name']}", f"({item['id']})"])
@@ -122,8 +85,8 @@ def request_file_info(creds):
         service.files()
         .list(
             pageSize=100, 
-            fields="nextPageToken, files(id, name)",
-            q="trashed=false")
+            fields="nextPageToken, files(id, name, parents)",
+            q="trashed=false and createdTime >= '2023-01-01T00:00:00'")
         .execute()
       )
       
