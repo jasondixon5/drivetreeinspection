@@ -67,10 +67,7 @@ def handle_items(items):
             'name': item_name,
             'parents': item_parents
             })
-        # writer.writerows(items)
-        # writer.writerows([f"{item['name']}", f"({item['id']})"])
-        # writer.writerows(items)
-  
+         
   except Exception as e:
       print(f"Exception encountered when trying to write to file:\n\n{e}")
 
