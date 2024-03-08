@@ -54,7 +54,7 @@ def request_file_info(creds):
         service.files()
         .list(
             pageSize=100, 
-            fields="nextPageToken, files(kind, driveId, id, name, parents)",
+            fields="nextPageToken, files(kind, driveId, id, name, parents, mimeType)",
             q="trashed=false and createdTime >= '2023-01-01T00:00:00'")
         .execute()
       )
@@ -94,13 +94,15 @@ def handle_items(items):
             item_parents = item['parents'][0] if item.get('parents') is not None else ''
             item_kind = item['kind']
             item_drive_id = item['driveId']
+            item_mime_type = item['mimeType']
 
             writer.writerow({
               'kind': item_kind,
               'driveId': item_drive_id,
               'id': item_id, 
               'name': item_name,
-              'parents': item_parents
+              'parents': item_parents,
+              'mimeType': item_mime_type,
               })
           except Exception as e:
             print(f"Exception encountered when trying to write to file:\n")
