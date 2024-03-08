@@ -15,6 +15,10 @@ SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
 # * Look into read operation timeout error; possible need for chunking
 # * Add path info (key?)
 # * Avoid writing headers if not first write to file
+# * Add timestamp to output filename
+# * Find out why script may be writing same file multiple times
+
+
 
 
 
@@ -50,15 +54,19 @@ def main():
     with open("token.json", "w") as token:
       token.write(creds.to_json())
 
-  request_file_info(creds)
+  service = build("drive", "v3", credentials=creds)
+  request_file_info(service)
 
-def request_file_info(creds):
+  print("Finished script.")
+
+def request_file_info(service):
+  
   call_count = 0
 
   try:
-    service = build("drive", "v3", credentials=creds)
-  
+
     while call_count >= 0:
+      
       results = (
         service.files()
         .list(
@@ -69,14 +77,15 @@ def request_file_info(creds):
       )
       
       page_token = results.get("nextPageToken")
-      items = results.get("files", [])
-      handle_items(items)
 
       if page_token:
         call_count += 1
       else:
         call_count = -1
   
+      items = results.get("files", [])
+      handle_items(items)
+
   except HttpError as error:
     # TODO(developer) - Handle errors from drive API.
     print(f"An error occurred: {error}")
@@ -87,15 +96,16 @@ def handle_items(items):
   if not items:
     print("No files found.")
     return
-  # print("Files:")
+
   try:
     
-    # print(items)
     with open('inspect_results.csv', 'a', newline='') as csvfile:
-        fieldnames = ['kind', 'id', 'name', 'parents']
+
+        fieldnames = ['kind', 'id', 'name', 'parents', 'mimeType']
         writer=csv.DictWriter(csvfile, fieldnames=fieldnames)
-        # writer.writeheader()
+
         for item in items:
+
           try:
 
             item_id = item['id']
@@ -111,18 +121,17 @@ def handle_items(items):
               'parents': item_parents,
               'mimeType': item_mime_type,
               })
+
           except Exception as e:
             print(f"Exception encountered when trying to write to file:\n")
             print(item)
             print(f"Exception: {e}")
-
-
           
   except Exception as e:
       print(f"Exception encountered when trying to write to file:\n\n{e}")
 
 
-  print("Finished drive inspection script.")
+  print("Finished batch of files.")
 
  
 if __name__ == "__main__":
