@@ -1,6 +1,8 @@
 import csv
 import os.path
 
+from datetime import datetime, timedelta
+
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -24,40 +26,33 @@ SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
 
 def main():
   
-  creds = None
-  # The file token.json stores the user's access and refresh tokens, and is
-  # created automatically when the authorization flow completes for the first
-  # time.
-  if os.path.exists("token.json"):
-    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-  # If there are no (valid) credentials available, let the user log in.
-  if not creds or not creds.valid:
-    if creds and creds.expired and creds.refresh_token:
-      # Hack to get around refresh error
-      try:
-        creds.refresh(Request())
-      except Exception as e:
-        print(f"Workaround for: \n {e}")
-        flow = InstalledAppFlow.from_client_secrets_file(
-          "credentials.json", SCOPES
-          )
-        creds = flow.run_local_server(port=0)
-    else:
-      flow = InstalledAppFlow.from_client_secrets_file(
-          "credentials.json", SCOPES
-      )
-      creds = flow.run_local_server(port=0)
-    
-    # Save the credentials for the next run
-    with open("token.json", "w") as token:
-      token.write(creds.to_json())
+  # creds = provide_creds() 
+  # service = build("drive", "v3", credentials=creds)
 
-  service = build("drive", "v3", credentials=creds)
-  request_file_info(service)
+  # request_file_info(service)
+
+  print(create_timestamp_bookends())
 
   print("Finished script.")
 
-def request_file_info(service):
+def create_timestamp_bookends():
+
+  timestamp_bookends = []
+
+  yearly_queries_cap = 10
+  current_year = datetime.now().year
+
+  for years_ago in range(0, yearly_queries_cap):
+    yr = current_year - years_ago
+    start_str = datetime(yr, 1, 1).strftime('%Y-%m-%dT00:00:00')
+    end_str = datetime(yr, 12, 31).strftime('%Y-%m-%dT12:59:59')
+    
+    timestamp_bookends.append((start_str, end_str))
+
+  return timestamp_bookends
+
+
+def request_file_info(service, year_bookends):
   
   call_count = 0
   page_token = None
@@ -134,6 +129,37 @@ def handle_items(items):
 
   print("Finished batch of files.")
 
- 
+def provide_creds():
+
+  creds = None
+  # The file token.json stores the user's access and refresh tokens, and is
+  # created automatically when the authorization flow completes for the first
+  # time.
+  if os.path.exists("token.json"):
+    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+  # If there are no (valid) credentials available, let the user log in.
+  if not creds or not creds.valid:
+    if creds and creds.expired and creds.refresh_token:
+      # Hack to get around refresh error
+      try:
+        creds.refresh(Request())
+      except Exception as e:
+        print(f"Workaround for: \n {e}")
+        flow = InstalledAppFlow.from_client_secrets_file(
+          "credentials.json", SCOPES
+          )
+        creds = flow.run_local_server(port=0)
+    else:
+      flow = InstalledAppFlow.from_client_secrets_file(
+          "credentials.json", SCOPES
+      )
+      creds = flow.run_local_server(port=0)
+    
+    # Save the credentials for the next run
+    with open("token.json", "w") as token:
+      token.write(creds.to_json())
+
+  return creds
+
 if __name__ == "__main__":
   main()
