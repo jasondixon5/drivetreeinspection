@@ -23,9 +23,7 @@ SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
 
 
 def main():
-  """Shows basic usage of the Drive v3 API.
-  Prints the names and ids of the first 10 files the user has access to.
-  """
+  
   creds = None
   # The file token.json stores the user's access and refresh tokens, and is
   # created automatically when the authorization flow completes for the first
@@ -43,7 +41,7 @@ def main():
         flow = InstalledAppFlow.from_client_secrets_file(
           "credentials.json", SCOPES
           )
-      creds = flow.run_local_server(port=0)
+        creds = flow.run_local_server(port=0)
     else:
       flow = InstalledAppFlow.from_client_secrets_file(
           "credentials.json", SCOPES
@@ -62,30 +60,33 @@ def main():
 def request_file_info(service):
   
   call_count = 0
+  page_token = None
 
   try:
 
     while call_count >= 0:
-      
+            
       results = (
         service.files()
         .list(
             pageSize=100, 
             fields="nextPageToken, files(kind, id, name, parents, mimeType)",
-            q="trashed=false and createdTime >= '2023-01-01T00:00:00'")
+            q="trashed=false and createdTime >= '2023-01-01T00:00:00'",
+            pageToken=page_token,
+          )
         .execute()
       )
       
       page_token = results.get("nextPageToken")
+
+      items = results.get("files", [])
+      handle_items(items)
 
       if page_token:
         call_count += 1
       else:
         call_count = -1
   
-      items = results.get("files", [])
-      handle_items(items)
-
   except HttpError as error:
     # TODO(developer) - Handle errors from drive API.
     print(f"An error occurred: {error}")
