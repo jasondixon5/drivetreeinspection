@@ -13,48 +13,37 @@ from googleapiclient.errors import HttpError
 SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
 
 # TODOS:
-# * Set output to screen for each request so know script is still working
 # * Look into read operation timeout error; possible need for chunking
-# * Add path info (key?)
 # * Avoid writing headers if not first write to file
-# * Add timestamp to output filename
-# * Find out why script may be writing same file multiple times
-
-
-
 
 
 def main():
   
-  # creds = provide_creds() 
-  # service = build("drive", "v3", credentials=creds)
+  creds = provide_creds() 
+  service = build("drive", "v3", credentials=creds)
 
   # request_file_info(service)
 
   # print(get_minimum_timestamp(create_timestamp_bookends()))
   # print(create_timestamp_bookends())
 
-  ts = create_timestamp_bookends()
+  ts = create_timestamp_bookends(10)
   qc = create_query_clauses(ts)
-  for q in qc:
-    print(q) 
+  request_file_info(qc[:3])
 
   print("Finished script.")
 
-def create_timestamp_bookends():
+def create_timestamp_bookends(yearly_queries_cap):
 
   timestamp_bookends = []
 
-  yearly_queries_cap = 10
   current_year = datetime.now().year
 
   for years_ago in range(0, yearly_queries_cap):
     yr = current_year - years_ago
-    start_str = datetime(yr, 1, 1).strftime('%Y-%m-%dT00:00:00')
-    # end_str = datetime(yr, 12, 31).strftime('%Y-%m-%dT12:59:59')
-    
-    # timestamp_bookends.append((start_str, end_str))
-    timestamp_bookends.append(start_str)
+    start = datetime(yr, 1, 1).strftime('%Y-%m-%dT00:00:00')
+      
+    timestamp_bookends.append(start)
 
   return sorted(timestamp_bookends)
 
@@ -79,9 +68,6 @@ def create_query_clauses(timestamp_list):
 
   return queries
 
-  
-
-
 def request_file_info(service, query_list):
   
   call_count = 0
@@ -99,9 +85,9 @@ def request_file_info(service, query_list):
         results = (
           service.files()
           .list(
-              pageSize=100, 
+              pageSize=1000, 
               fields="nextPageToken, files(kind, id, name, parents, mimeType)",
-              q="trashed=false and createdTime >= '2023-01-01T00:00:00'",
+              q=q,
               pageToken=page_token,
             )
           .execute()
