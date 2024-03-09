@@ -1,5 +1,6 @@
 import csv
 import os.path
+import sqlite3
 
 from datetime import datetime, timedelta
 
@@ -21,15 +22,15 @@ def main():
   
   creds = provide_creds() 
   service = build("drive", "v3", credentials=creds)
-
-  # request_file_info(service)
-
-  # print(get_minimum_timestamp(create_timestamp_bookends()))
-  # print(create_timestamp_bookends())
-
+  
   ts = create_timestamp_bookends(10)
   qc = create_query_clauses(ts)
-  request_file_info(qc[:3])
+
+  # Query api and store results
+  request_file_info(service=service, query_list=qc)
+
+  # Print audit info to stdout
+  check_db("drive_results.db", "drive")
 
   print("Finished script.")
 
@@ -86,7 +87,7 @@ def request_file_info(service, query_list):
           service.files()
           .list(
               pageSize=1000, 
-              fields="nextPageToken, files(kind, id, name, parents, mimeType)",
+              fields="nextPageToken, files(id, name, parents, mimeType, createdTime)",
               q=q,
               pageToken=page_token,
             )
@@ -96,7 +97,7 @@ def request_file_info(service, query_list):
         page_token = results.get("nextPageToken")
 
         items = results.get("files", [])
-        handle_items(items)
+        handle_items_db(items)
 
         if page_token:
           call_count += 1
@@ -107,7 +108,7 @@ def request_file_info(service, query_list):
     # TODO(developer) - Handle errors from drive API.
     print(f"An error occurred: {error}")
 
-def handle_items(items):
+def handle_items_csv(items):
 
   if not items:
     print("No files found.")
@@ -117,8 +118,7 @@ def handle_items(items):
     
     with open('inspect_results.csv', 'a', newline='') as csvfile:
 
-        fieldnames = ['kind', 'id', 'name', 'parents', 'mimeType']
-        writer=csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer = csv.writer(csvfile)
 
         for item in items:
 
@@ -127,16 +127,18 @@ def handle_items(items):
             item_id = item['id']
             item_name = item['name']
             item_parents = item['parents'][0] if item.get('parents') is not None else ''
-            item_kind = item['kind']
             item_mime_type = item['mimeType']
+            is_folder = 1 if item_mime_type == 'application/vnd.google-apps.folder' else 0
+            item_created = item['createdTime']
 
-            writer.writerow({
-              'kind': item_kind,
-              'id': item_id, 
-              'name': item_name,
-              'parents': item_parents,
-              'mimeType': item_mime_type,
-              })
+            writer.writerow([
+              item_id, 
+              item_name,
+              item_parents,
+              item_mime_type,
+              is_folder,
+              item_created,
+            ])
 
           except Exception as e:
             print(f"Exception encountered when trying to write to file:\n")
@@ -148,6 +150,62 @@ def handle_items(items):
 
 
   print("Finished batch of files.")
+
+def handle_items_db(items):
+
+  if not items:
+    print("No files found.")
+    return
+
+
+  con = sqlite3.connect("drive_results.db")
+  cur = con.cursor()
+
+  # Check if table already exists and create if not
+  res = cur.execute("SELECT name from sqlite_master WHERE name='drive'")
+  if res.fetchone() is None:
+    cur.execute("CREATE TABLE drive(id, name, parents, mime_type, is_folder, created)")
+
+  for item in items:
+
+    data = ({
+      "item_id": item['id'],
+      "item_name": item['name'],
+      "item_parents": (item['parents'][0] if item.get('parents') is not None else ''),
+      "item_mime_type": item['mimeType'],
+      "is_folder": (1 if item['mimeType'] == 'application/vnd.google-apps.folder' else 0),
+      "item_created": item['createdTime'],
+    })
+
+    cur.execute("""
+      INSERT INTO drive VALUES(
+        :item_id, 
+        :item_name, 
+        :item_parents, 
+        :item_mime_type, 
+        :is_folder, 
+        :item_created)""", data)
+
+    con.commit()
+
+  print("Finished batch of files.")
+
+def check_db(db_name, table_name):
+
+  con = sqlite3.connect(db_name)
+
+  cur = con.cursor()
+
+  print(f"Table count for {table_name}")
+  print(cur.execute(f"SELECT COUNT(*) FROM {table_name}").fetchall())
+  
+  # drive_results = cur.execute(f"SELECT * FROM {table_name} LIMIT 100")
+  print("Result sample...\n")
+  for row in cur.execute(f"SELECT * FROM {table_name} LIMIT 100"):
+    print(row)
+  
+  
+
 
 def provide_creds():
 
