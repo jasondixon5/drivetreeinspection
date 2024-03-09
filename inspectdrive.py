@@ -31,7 +31,13 @@ def main():
 
   # request_file_info(service)
 
-  print(create_timestamp_bookends())
+  # print(get_minimum_timestamp(create_timestamp_bookends()))
+  # print(create_timestamp_bookends())
+
+  ts = create_timestamp_bookends()
+  qc = create_query_clauses(ts)
+  for q in qc:
+    print(q) 
 
   print("Finished script.")
 
@@ -45,47 +51,75 @@ def create_timestamp_bookends():
   for years_ago in range(0, yearly_queries_cap):
     yr = current_year - years_ago
     start_str = datetime(yr, 1, 1).strftime('%Y-%m-%dT00:00:00')
-    end_str = datetime(yr, 12, 31).strftime('%Y-%m-%dT12:59:59')
+    # end_str = datetime(yr, 12, 31).strftime('%Y-%m-%dT12:59:59')
     
-    timestamp_bookends.append((start_str, end_str))
+    # timestamp_bookends.append((start_str, end_str))
+    timestamp_bookends.append(start_str)
 
-  return timestamp_bookends
+  return sorted(timestamp_bookends)
+
+def create_query_clauses(timestamp_list):
+
+  non_time_query = "trashed=false and "
+  # timestamp_text_templ = f"createdTime >= '{timestamp_pair[0]}' and createdTime <= {}" 
+
+  queries = []
+
+  for i in range(len(timestamp_list) - 1):
+    time_query = f"createdTime >= '{timestamp_list[i]}' and createdTime < '{timestamp_list[i+1]}'"  
+    queries.append(non_time_query + time_query)
+
+  # Handle before oldest and after newest timestmap
+  # Assumes timestamps are sorted!!!
+  before = f"createdTime < '{timestamp_list[0]}'" 
+  queries.append(non_time_query + before)
+
+  after = f"createdTime >= '{timestamp_list[-1]}'"
+  queries.append(non_time_query + after)
+
+  return queries
+
+  
 
 
-def request_file_info(service, year_bookends):
+def request_file_info(service, query_list):
   
   call_count = 0
   page_token = None
 
   try:
 
-    while call_count >= 0:
-            
-      results = (
-        service.files()
-        .list(
-            pageSize=100, 
-            fields="nextPageToken, files(kind, id, name, parents, mimeType)",
-            q="trashed=false and createdTime >= '2023-01-01T00:00:00'",
-            pageToken=page_token,
-          )
-        .execute()
-      )
+    for q in query_list:
       
-      page_token = results.get("nextPageToken")
+      call_count = 0
+      page_token = None
+    
+      while call_count >= 0:
+              
+        results = (
+          service.files()
+          .list(
+              pageSize=100, 
+              fields="nextPageToken, files(kind, id, name, parents, mimeType)",
+              q="trashed=false and createdTime >= '2023-01-01T00:00:00'",
+              pageToken=page_token,
+            )
+          .execute()
+        )
+        
+        page_token = results.get("nextPageToken")
 
-      items = results.get("files", [])
-      handle_items(items)
+        items = results.get("files", [])
+        handle_items(items)
 
-      if page_token:
-        call_count += 1
-      else:
-        call_count = -1
-  
+        if page_token:
+          call_count += 1
+        else:
+          call_count = -1
+    
   except HttpError as error:
     # TODO(developer) - Handle errors from drive API.
     print(f"An error occurred: {error}")
-
 
 def handle_items(items):
 
