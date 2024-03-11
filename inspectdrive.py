@@ -26,11 +26,17 @@ def main():
   ts = create_timestamp_bookends(10)
   qc = create_query_clauses(ts)
 
+  db_name = "drive_results.db"
+  table_name = "drive"
+  
+  # Drop table from db if exists
+  drop_table(db_name, table_name)
+
   # Query api and store results
   request_file_info(service=service, query_list=qc)
 
-  # Print audit info to stdout
-  check_db("drive_results.db", "drive")
+  # Print audit info
+  check_db(db_name, table_name)
 
   print("Finished script.")
 
@@ -87,7 +93,7 @@ def request_file_info(service, query_list):
           service.files()
           .list(
               pageSize=1000, 
-              fields="nextPageToken, files(id, name, parents, mimeType, createdTime)",
+              fields="nextPageToken, files(id, name, parents, mimeType, size, createdTime)",
               q=q,
               pageToken=page_token,
             )
@@ -129,6 +135,7 @@ def handle_items_csv(items):
             item_parents = item['parents'][0] if item.get('parents') is not None else ''
             item_mime_type = item['mimeType']
             is_folder = 1 if item_mime_type == 'application/vnd.google-apps.folder' else 0
+            item_size = item['size']
             item_created = item['createdTime']
 
             writer.writerow([
@@ -137,6 +144,7 @@ def handle_items_csv(items):
               item_parents,
               item_mime_type,
               is_folder,
+              item_size,
               item_created,
             ])
 
@@ -164,7 +172,7 @@ def handle_items_db(items):
   # Check if table already exists and create if not
   res = cur.execute("SELECT name from sqlite_master WHERE name='drive'")
   if res.fetchone() is None:
-    cur.execute("CREATE TABLE drive(id, name, parents, mime_type, is_folder, created)")
+    cur.execute("CREATE TABLE drive(id, name, parents, mime_type, is_folder, size, created)")
 
   for item in items:
 
@@ -174,6 +182,7 @@ def handle_items_db(items):
       "item_parents": (item['parents'][0] if item.get('parents') is not None else ''),
       "item_mime_type": item['mimeType'],
       "is_folder": (1 if item['mimeType'] == 'application/vnd.google-apps.folder' else 0),
+      "item_size": item.get('size'),
       "item_created": item['createdTime'],
     })
 
@@ -183,7 +192,8 @@ def handle_items_db(items):
         :item_name, 
         :item_parents, 
         :item_mime_type, 
-        :is_folder, 
+        :is_folder,
+        :item_size, 
         :item_created)""", data)
 
     con.commit()
@@ -204,7 +214,16 @@ def check_db(db_name, table_name):
   for row in cur.execute(f"SELECT * FROM {table_name} LIMIT 100"):
     print(row)
   
+def drop_table(db_name, table_name):
   
+  con = sqlite3.connect(db_name)
+  cur = con.cursor()
+
+  # Check if table already exists and drop if it does
+  res = cur.execute(f"SELECT name from sqlite_master WHERE name='{table_name}'")
+  
+  if res.fetchone() is not None:
+    cur.execute(f"DROP TABLE {table_name}")
 
 
 def provide_creds():
