@@ -16,6 +16,8 @@ SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
 # TODOS:
 # * Look into read operation timeout error; possible need for chunking
 # * Avoid writing headers if not first write to file
+# * Create new script with ability to pass arguments to do things like
+#   create/replace db and do db + output report with one command
 
 
 def main():
