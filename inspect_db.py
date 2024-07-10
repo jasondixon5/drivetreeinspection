@@ -3,6 +3,13 @@ import sqlite3
 
 from datetime import datetime
 
+# TODO: Handle edge case of id for root folder (My Drive). Doesn't show up in table but does show up as parent id of folders at root
+# TODO: Decide if need sentinel value in details array to say it's a shared folder (shared but not owned by script runner)
+# TODO: Determine how shared-unowned folders AND documents appear in db
+
+
+
+
 
 def get_folders(db):
 
@@ -44,7 +51,44 @@ def set_up_folder_var(rows):
         folders[id] = [name, parent_id, 0, 0, 0, 0]
 
     # Add default entry
-    folders['0'] = ['default', '', 0, 0, 0, 0]
+    folders['0'] = ['root', '', 0, 0, 0, 0]
+
+    return folders
+
+def add_parent_name_to_folder_var(folders):
+
+    errors = set()
+    for id, details in folders.items():
+        # Add name of parent folder to details array
+        parent_id = details[1]
+        parent_details = folders.get(parent_id)
+        # Due to data constraints, if parent or this folder is root won't be able to retrieve details
+        if parent_details is None and parent_id == '': # this folder is root
+            errors.add(parent_id)
+            folders[id].append('')
+        elif parent_details is None: # parent is root, add default parent name
+            errors.add(parent_id)
+            folders[id].append('root')
+        elif parent_details[1] == '': # shared folder unowned by user
+            errors.add(id)
+        
+        else:
+            parent_name = parent_details[0]
+            # details.append(parent_name)
+            folders[id].append(parent_name)
+
+    # Audit 
+    i = 5
+    for id, details in folders.items():
+        if i < 0:
+            break
+        else:
+            print(id)
+            print(details)
+            i -= 1
+    # End Audit
+            
+    print(f"Errors during parent name retrieval: {errors}")
 
     return folders
 
@@ -121,10 +165,16 @@ def build_folder_path(folders):
         folder_path = "/".join(folder_path_interim)
         folder_details[6] = folder_path
 
-def summarize_rows(folders):
+def summarize_rows(folders, limit=None):
+
+    count = 0
 
     for folder, val in folders.items():
-        print(folder, val)
+        if limit is not None and count < 0:
+            break
+        else:
+            print(folder, val)
+            count -= 1
 
 def output_report(folders):
 
@@ -167,6 +217,104 @@ def output_report(folders):
                 folder_url,
             ])
 
+
+def check_root_dir(db):
+
+    con = sqlite3.connect(db)
+
+    with con:
+        
+        query = """SELECT
+            id
+        , name
+        , parents
+        , mime_type
+        , is_folder
+        , size
+        , created
+        FROM drive
+        WHERE id = '0AH0oInLp4i6JUk9PVA'
+        """
+    
+    cur = con.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    con.close()
+
+    print("Query to inspect table contents for root folder.")
+    print(f"Fetched {len(rows)} folders.")
+
+    for row in rows:
+        print(row)
+
+    return rows
+
+def check_nepal_shared_folder(db):
+
+    con = sqlite3.connect(db)
+
+    with con:
+        
+        query = """SELECT
+            id
+        , name
+        , parents
+        , mime_type
+        , is_folder
+        , size
+        , created
+        FROM drive
+        WHERE id = '0BwHomZPdcm1cT2VVcTFSWGxpdEU'
+        """
+    
+    cur = con.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    con.close()
+
+    print("Query to inspect table contents for root folder.")
+    print(f"Fetched {len(rows)} folders.")
+
+    for row in rows:
+        print(row)
+
+    return rows
+
+def check_no_parent_folders(db):
+
+    con = sqlite3.connect(db)
+
+    with con:
+        
+        query = """SELECT
+            id
+        , name
+        , parents
+        , mime_type
+        , is_folder
+        , size
+        , created
+        FROM drive
+        WHERE is_folder = 1 AND (
+            parents IS NULL
+            OR parents = ''
+        )
+        """
+    
+    cur = con.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    con.close()
+
+    print("Query to inspect table contents for folders without parents.")
+    print(f"Fetched {len(rows)} folders.")
+
+    for row in rows:
+        print(row)
+
+    return rows
+
+
 def main():
 
     db = 'drive_results.db' 
@@ -174,9 +322,13 @@ def main():
     document_rows = get_documents(db)
     folders = set_up_folder_var(folder_rows)
     folders = fill_folder_var(folders, document_rows)
-    # summarize_rows(folders)
-    output_report(folders)
-
+    # summarize_rows(folders, 5)
+    # output_report(folders)
+    add_parent_name_to_folder_var(folders)
+    # check_root_dir(db)
+    # check_nepal_shared_folder(db)
+    # check_no_parent_folders(db)
+    
     return 0
 
 if __name__ == "__main__":
