@@ -1,3 +1,4 @@
+import argparse
 import csv
 import sqlite3
 
@@ -8,7 +9,48 @@ from datetime import datetime
 # TODO: Determine how shared-unowned folders AND documents appear in db
 
 
+def check_for_root_folder(db):
 
+    con = sqlite3.connect(db)
+
+    print("Query for size of drive table")
+    with con:
+        query = """SELECT COUNT(*) FROM drive"""
+
+    cur = con.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    con.close()
+    
+    for row in rows:
+        print(row)
+    
+    con = sqlite3.connect(db)
+    print("Results of query to db for root drive info")
+    with con:
+        
+        query = """SELECT
+            id
+        , name
+        , parents
+        , mime_type
+        , is_folder
+        , size
+        , created
+        FROM drive
+        WHERE name = 'My Drive' or id = '0AH0oInLp4i6JUk9PVA'
+        """
+    
+    cur = con.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    con.close()
+    for row in rows:
+        print(row)
+    print(f"Fetched {len(rows)} folders.")
+
+    return rows
+ 
 
 
 def get_folders(db):
@@ -168,7 +210,7 @@ def build_folder_path(folders):
 def summarize_rows(folders, limit=None):
 
     count = 0
-
+    print(f"Summarizing folders and related info up to limit {limit}")
     for folder, val in folders.items():
         if limit is not None and count < 0:
             break
@@ -180,6 +222,8 @@ def output_report(folders):
 
     dt = datetime.now().strftime("%Y-%m-%d-%I-%M-%S-%p")
     output_filename = f"inspect_results_{dt}.csv"
+
+    print(f"Creating output filename {output_filename}")
 
     with open(output_filename, 'a', newline='') as csvfile:
 
@@ -216,6 +260,8 @@ def output_report(folders):
                 size_gb,
                 folder_url,
             ])
+
+    print(f"Finished writing output filename {output_filename}")
 
 
 def check_root_dir(db):
@@ -314,17 +360,30 @@ def check_no_parent_folders(db):
 
     return rows
 
+def argumentify():
+
+    """
+    Arguments
+
+    : 
+    """
+
+    parser = argparse.ArgumentParser()
 
 def main():
 
-    db = 'drive_results.db' 
-    folder_rows = get_folders(db)
-    document_rows = get_documents(db)
-    folders = set_up_folder_var(folder_rows)
-    folders = fill_folder_var(folders, document_rows)
+    db = 'drive_results.db'
+
+    check_for_root_folder(db)
+
+    # folder_rows = get_folders(db)
+    # document_rows = get_documents(db)
+    # folders = set_up_folder_var(folder_rows)
+    # folders = fill_folder_var(folders, document_rows)
+    
     # summarize_rows(folders, 5)
     # output_report(folders)
-    add_parent_name_to_folder_var(folders)
+    # add_parent_name_to_folder_var(folders)
     # check_root_dir(db)
     # check_nepal_shared_folder(db)
     # check_no_parent_folders(db)

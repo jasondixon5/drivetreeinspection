@@ -11,7 +11,9 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
+SCOPES = [
+          "https://www.googleapis.com/auth/drive.metadata.readonly",
+          "https://www.googleapis.com/auth/drive.readonly"]
 
 # TODOS:
 # * Look into read operation timeout error; possible need for chunking
@@ -25,22 +27,67 @@ def main():
   creds = provide_creds() 
   service = build("drive", "v3", credentials=creds)
   
-  ts = create_timestamp_bookends(10)
-  qc = create_query_clauses(ts)
-
-  db_name = "drive_results.db"
-  table_name = "drive"
+  # examples = {
+  #   "Folder at root level": "11-l1BkeUwvHg33Il71Nw3aLQoJkA6qnr",
+  #   "File within a folder": '1nYIOcYHOSJJLocOB7JtGfO6g57ITfvoY',
+  #   "Root drive id": '0AH0oInLp4i6JUk9PVA',
+  #   "File at root level": '1CJxjOHX9fnhsVmwB4aR6uBVdHzzwH8KD',
+  #   "Shared folder not owned by drive owner": '0BwHomZPdcm1cT2VVcTFSWGxpdEU',
+  #   "Shared file not owned by drive owner":  '19USGyx8zWOIKlG7OeobJgfAlLk9MlWl1Fl2NqjJxVFo',
+  # }
   
-  # Drop table from db if exists
-  drop_table(db_name, table_name)
+  
+  # for desc, file_id in examples.items():
+    
+  #   print(desc)
+  #   query_one_file(service, file_id)
+  #   print("\n")
 
-  # Query api and store results
-  request_file_info(service=service, query_list=qc)
+    # ts = create_timestamp_bookends(10)
+  # qc = create_query_clauses(ts)
 
-  # Print audit info
-  check_db(db_name, table_name)
+  # db_name = "drive_results.db"
+  # table_name = "drive"
+  
+  # # Drop table from db if exists
+  # drop_table(db_name, table_name)
+
+  # # Query api and store results
+  # request_file_info(service=service, query_list=qc)
+
+  # # Print audit info
+  # check_db(db_name, table_name)
+    
+  #request_drive_info(service)
+
+  get_file_types(service)
 
   print("Finished script.")
+
+def query_one_file(service, file_id):
+
+  q = f"id = {file_id}"
+
+  # results = (
+  #         service.files()
+  #         .list(
+  #             pageSize=1000, 
+  #             fields="files(id, name, parents, mimeType, size, createdTime)",
+  #             q=q,
+  #           )
+  #         .execute()
+  #       )
+  results = service.files().get(
+    fileId=file_id, 
+    fields='id, name, mimeType, createdTime, modifiedTime, parents'
+  ).execute()
+
+  print(results)
+
+  return results
+        
+
+  
 
 def create_timestamp_bookends(yearly_queries_cap):
 
@@ -76,6 +123,93 @@ def create_query_clauses(timestamp_list):
   queries.append(non_time_query + after)
 
   return queries
+
+def request_drive_info(service):
+
+  """
+  Get info about a user's drives
+  """
+    
+  call_count = 0
+  page_token = None
+
+  while call_count >= 0:
+
+    try:
+
+      print("Call to fetch drive info")
+          
+      results = (
+        service.drives()
+        .list(
+            pageSize=100, 
+            # fields="nextPageToken, files(id, name, kind, createdTime)",
+            pageToken=page_token,
+          )
+        .execute()
+      )
+      
+      page_token = results.get("nextPageToken")
+
+      items = results.get("drives", [])
+      # print(items)
+      print(results)
+
+      if page_token:
+        call_count += 1
+      else:
+        call_count = -1
+
+    except HttpError as error:
+      # TODO(developer) - Handle errors from drive API.
+      print(f"An error occurred: {error}")
+      call_count = -1
+
+  return items
+
+def get_file_types(service):
+
+  call_count = 0
+  page_token = None
+
+  file_types = set()
+
+  try:
+
+    call_count = 0
+    page_token = None
+  
+    while call_count >= 0:
+            
+      results = (
+        service.files()
+        .list(
+            pageSize=1000, 
+            fields="nextPageToken, files(id, name, parents, mimeType, size, createdTime)",
+            pageToken=page_token,
+          )
+        .execute()
+      )
+      
+      page_token = results.get("nextPageToken")
+
+      items = results.get("files", [])
+      if items:
+        for item in items:
+          file_types.add(item['mimeType'])
+      
+      if page_token:
+        call_count += 1
+      else:
+        call_count = -1
+  
+  except HttpError as error:
+    # TODO(developer) - Handle errors from drive API.
+    print(f"An error occurred: {error}")
+
+  print("File types")
+  print(file_types)
+
 
 def request_file_info(service, query_list):
   
