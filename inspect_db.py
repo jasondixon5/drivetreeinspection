@@ -9,47 +9,47 @@ from datetime import datetime
 # TODO: Determine how shared-unowned folders AND documents appear in db
 
 
-def check_for_root_folder(db):
+# def check_for_root_folder(db):
 
-    con = sqlite3.connect(db)
+#     con = sqlite3.connect(db)
 
-    print("Query for size of drive table")
-    with con:
-        query = """SELECT COUNT(*) FROM drive"""
+#     print("Query for size of drive table")
+#     with con:
+#         query = """SELECT COUNT(*) FROM drive"""
 
-    cur = con.cursor()
-    cur.execute(query)
-    rows = cur.fetchall()
-    con.close()
+#     cur = con.cursor()
+#     cur.execute(query)
+#     rows = cur.fetchall()
+#     con.close()
     
-    for row in rows:
-        print(row)
+#     for row in rows:
+#         print(row)
     
-    con = sqlite3.connect(db)
-    print("Results of query to db for root drive info")
-    with con:
+#     con = sqlite3.connect(db)
+#     print("Results of query to db for root drive info")
+#     with con:
         
-        query = """SELECT
-            id
-        , name
-        , parents
-        , mime_type
-        , is_folder
-        , size
-        , created
-        FROM drive
-        WHERE name = 'My Drive' or id = '0AH0oInLp4i6JUk9PVA'
-        """
+#         query = """SELECT
+#             id
+#         , name
+#         , parents
+#         , mime_type
+#         , is_folder
+#         , size
+#         , created
+#         FROM drive
+#         WHERE name = 'My Drive'
+#         """
     
-    cur = con.cursor()
-    cur.execute(query)
-    rows = cur.fetchall()
-    con.close()
-    for row in rows:
-        print(row)
-    print(f"Fetched {len(rows)} folders.")
+#     cur = con.cursor()
+#     cur.execute(query)
+#     rows = cur.fetchall()
+#     con.close()
+#     for row in rows:
+#         print(row)
+#     print(f"Fetched {len(rows)} folders.")
 
-    return rows
+#     return rows
  
 
 
@@ -103,32 +103,13 @@ def add_parent_name_to_folder_var(folders):
     for id, details in folders.items():
         # Add name of parent folder to details array
         parent_id = details[1]
-        parent_details = folders.get(parent_id)
-        # Due to data constraints, if parent or this folder is root won't be able to retrieve details
-        if parent_details is None and parent_id == '': # this folder is root
-            errors.add(parent_id)
-            folders[id].append('')
-        elif parent_details is None: # parent is root, add default parent name
-            errors.add(parent_id)
-            folders[id].append('root')
-        elif parent_details[1] == '': # shared folder unowned by user
-            errors.add(id)
-        
+        parent_details = folders.get(parent_id, folders.get('0')) # If no details for parent in db, must be root
+
+        if parent_details is None:
+            errors.add(parent_id)        
         else:
             parent_name = parent_details[0]
-            # details.append(parent_name)
             folders[id].append(parent_name)
-
-    # Audit 
-    i = 5
-    for id, details in folders.items():
-        if i < 0:
-            break
-        else:
-            print(id)
-            print(details)
-            i -= 1
-    # End Audit
             
     print(f"Errors during parent name retrieval: {errors}")
 
@@ -264,67 +245,67 @@ def output_report(folders):
     print(f"Finished writing output filename {output_filename}")
 
 
-def check_root_dir(db):
+# def check_root_dir(db):
 
-    con = sqlite3.connect(db)
+#     con = sqlite3.connect(db)
 
-    with con:
+#     with con:
         
-        query = """SELECT
-            id
-        , name
-        , parents
-        , mime_type
-        , is_folder
-        , size
-        , created
-        FROM drive
-        WHERE id = '0AH0oInLp4i6JUk9PVA'
-        """
+#         query = """SELECT
+#             id
+#         , name
+#         , parents
+#         , mime_type
+#         , is_folder
+#         , size
+#         , created
+#         FROM drive
+#         WHERE id = '0AH0oInLp4i6JUk9PVA'
+#         """
     
-    cur = con.cursor()
-    cur.execute(query)
-    rows = cur.fetchall()
-    con.close()
+#     cur = con.cursor()
+#     cur.execute(query)
+#     rows = cur.fetchall()
+#     con.close()
 
-    print("Query to inspect table contents for root folder.")
-    print(f"Fetched {len(rows)} folders.")
+#     print("Query to inspect table contents for root folder.")
+#     print(f"Fetched {len(rows)} folders.")
 
-    for row in rows:
-        print(row)
+#     for row in rows:
+#         print(row)
 
-    return rows
+#     return rows
 
-def check_nepal_shared_folder(db):
+# def check_nepal_shared_folder(db):
 
-    con = sqlite3.connect(db)
+#     con = sqlite3.connect(db)
 
-    with con:
+#     with con:
         
-        query = """SELECT
-            id
-        , name
-        , parents
-        , mime_type
-        , is_folder
-        , size
-        , created
-        FROM drive
-        WHERE id = '0BwHomZPdcm1cT2VVcTFSWGxpdEU'
-        """
+#         query = """SELECT
+#             id
+#         , name
+#         , parents
+#         , mime_type
+#         , is_folder
+#         , size
+#         , created
+#         FROM drive
+#         WHERE id = '0BwHomZPdcm1cT2VVcTFSWGxpdEU'
+#         """
     
-    cur = con.cursor()
-    cur.execute(query)
-    rows = cur.fetchall()
-    con.close()
+#     cur = con.cursor()
+#     cur.execute(query)
+#     rows = cur.fetchall()
+#     con.close()
 
-    print("Query to inspect table contents for root folder.")
-    print(f"Fetched {len(rows)} folders.")
+#     print("Query to inspect table contents for root folder.")
+#     print(f"Fetched {len(rows)} folders.")
 
-    for row in rows:
-        print(row)
+#     for row in rows:
+#         print(row)
 
-    return rows
+#     return rows
 
 def check_no_parent_folders(db):
 
@@ -372,9 +353,9 @@ def argumentify():
 
 def main():
 
-    db = 'drive_results.db'
+    # db = 'drive_results.db'
 
-    check_for_root_folder(db)
+    # check_for_root_folder(db)
 
     # folder_rows = get_folders(db)
     # document_rows = get_documents(db)
@@ -387,6 +368,9 @@ def main():
     # check_root_dir(db)
     # check_nepal_shared_folder(db)
     # check_no_parent_folders(db)
+    
+    print("WARNING: Run summarize script instead of this script.")
+    print("Finished script.")
     
     return 0
 

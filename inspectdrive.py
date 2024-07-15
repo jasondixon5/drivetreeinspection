@@ -24,8 +24,8 @@ SCOPES = [
 
 def main():
   
-  creds = provide_creds() 
-  service = build("drive", "v3", credentials=creds)
+  # creds = provide_creds() 
+  # service = build("drive", "v3", credentials=creds)
   
   # examples = {
   #   "Folder at root level": "11-l1BkeUwvHg33Il71Nw3aLQoJkA6qnr",
@@ -60,9 +60,12 @@ def main():
     
   #request_drive_info(service)
 
-  get_file_types(service)
+  # get_file_types(service)
 
+  print("WARNING: Run summarize script instead of this script.")
   print("Finished script.")
+
+  return 0
 
 def query_one_file(service, file_id):
 
@@ -128,6 +131,9 @@ def request_drive_info(service):
 
   """
   Get info about a user's drives
+
+  UPDATE: Deprecated. The drives api is for shared drives not root ("My Drive"),
+  making it less useful for this project.
   """
     
   call_count = 0
@@ -169,6 +175,11 @@ def request_drive_info(service):
 
 def get_file_types(service):
 
+  """
+  Helper function that uses similar approach as request_drive_info
+  to inspect a drive. Returns list of the file types (MIME types) found.
+  """
+
   call_count = 0
   page_token = None
 
@@ -208,7 +219,10 @@ def get_file_types(service):
     print(f"An error occurred: {error}")
 
   print("File types")
-  print(file_types)
+  file_types = sorted(list(file_types))
+  for ft in file_types:
+    print(ft)
+
 
 
 def request_file_info(service, query_list):
@@ -239,6 +253,7 @@ def request_file_info(service, query_list):
         page_token = results.get("nextPageToken")
 
         items = results.get("files", [])
+        # Store results in db        
         handle_items_db(items)
 
         if page_token:
@@ -315,6 +330,7 @@ def handle_items_db(items):
     data = ({
       "item_id": item['id'],
       "item_name": item['name'],
+      # Research showed there was only one or 0 parents
       "item_parents": (item['parents'][0] if item.get('parents') is not None else ''),
       "item_mime_type": item['mimeType'],
       "is_folder": (1 if item['mimeType'] == 'application/vnd.google-apps.folder' else 0),
@@ -347,7 +363,7 @@ def check_db(db_name, table_name):
   
   # drive_results = cur.execute(f"SELECT * FROM {table_name} LIMIT 100")
   print("Result sample...\n")
-  for row in cur.execute(f"SELECT * FROM {table_name} LIMIT 100"):
+  for row in cur.execute(f"SELECT * FROM {table_name} LIMIT 10"):
     print(row)
   
 def drop_table(db_name, table_name):
