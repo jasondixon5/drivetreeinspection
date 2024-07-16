@@ -115,6 +115,35 @@ def add_parent_name_to_folder_var(folders):
 
     return folders
 
+def add_path_list_to_folder_var(folders):
+
+    """NOTE: Requires parent name to be added to folder var before using"""
+
+    id_path_dict = {} # A lookup to avoid having to build path repeatedly for all files/folders at same level
+    id_name_dict = {} # A lookup to get the parent name associated with the parent_id
+
+    for folder_id, details in folders.items():
+
+        folder_name = details[0]
+
+        if folder_id not in id_name_dict:
+            id_name_dict[folder_id] = folder_name
+
+    for folder_id, details in folders.items():
+        
+        parent_id = details[1]
+        parent_name = details[6]
+
+        details[7] = [parent_name]
+
+
+    # TODO: Implement walk up path of parents; add to list of paths unless 'root' in list of paths, then look up path in id_path_dict.
+        
+    return folders
+
+
+
+
 def get_documents(db):
 
     con = sqlite3.connect(db)
@@ -212,7 +241,8 @@ def output_report(folders):
 
         headers = [
             "Folder Name",
-            "Parent",
+            "Parent ID",
+            "Parent Name",
             "Size (bytes)",
             "Size (KB)",
             "Size (MB)",
@@ -226,6 +256,7 @@ def output_report(folders):
             
             name = folder_details[0]
             parent = folder_details[1]
+            parent_name = folder_details[6]
             size_bytes = folder_details[2]
             size_kb = folder_details[3]
             size_mb = folder_details[4]
@@ -235,6 +266,7 @@ def output_report(folders):
             writer.writerow([
                 name,
                 parent,
+                parent_name,
                 size_bytes,
                 size_kb,
                 size_mb,

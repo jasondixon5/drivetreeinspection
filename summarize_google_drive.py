@@ -20,6 +20,7 @@ from inspectdrive import (
 )
 
 from inspect_db import (
+    add_parent_name_to_folder_var,
     fill_folder_var,
     get_documents,
     get_folders, 
@@ -64,6 +65,7 @@ def create_report():
     document_rows = get_documents(db)
     folders = set_up_folder_var(folder_rows)
     folders = fill_folder_var(folders, document_rows)
+    folders = add_parent_name_to_folder_var(folders)
     summarize_rows(folders, 5)
     output_report(folders)
 
