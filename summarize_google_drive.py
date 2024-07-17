@@ -20,13 +20,16 @@ from inspectdrive import (
 )
 
 from inspect_db import (
+    add_folder_path_to_folder_var,
     add_parent_name_to_folder_var,
     fill_folder_var,
     get_documents,
     get_folders, 
     output_report,
     set_up_folder_var,
-    summarize_rows
+    stringify_folder_path,
+    summarize_rows,
+    walk_folder_path,
 )
 
 db = 'drive_results.db'
