@@ -66,6 +66,7 @@ def create_report():
     folders = set_up_folder_var(folder_rows)
     folders = fill_folder_var(folders, document_rows)
     folders = add_parent_name_to_folder_var(folders)
+    folders = add_folder_path_to_folder_var(folders) 
     summarize_rows(folders, 5)
     output_report(folders)
 

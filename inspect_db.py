@@ -115,109 +115,48 @@ def add_parent_name_to_folder_var(folders):
 
     return folders
 
-# def add_path_list_to_folder_var(folders):
+def walk_folder_path(folders, folder_id):
 
-#     """NOTE: Requires parent name to be added to folder var before using"""
+    """NOTE: Requires parent name to be added to folder var before using"""
 
-#     id_path_dict = {} # A lookup to avoid having to build path repeatedly for all files/folders at same level
-#     id_name_dict = {} # A lookup to get the parent name associated with the parent_id
+    folder_path = []
 
-#     for folder_id, details in folders.items():
-
-#         folder_name = details[0]
-
-#         if folder_id not in id_name_dict:
-#             id_name_dict[folder_id] = folder_name
-
-#     for folder_id, details in folders.items():
-        
-#         parent_id = details[1]
-#         parent_name = details[6]
-
-#         details[7] = [parent_name]
-
-
-#     # TODO: Implement walk up path of parents; add to list of paths unless 'root' in list of paths, then look up path in id_path_dict.
-        
-#     return folders
-
-def add_path_list_to_folder_var_all_folders(folders, single_id=None):
-
-    print("Add path: Creating helper dictionaries")
-    id_path_dict = {} # A lookup to avoid having to build path repeatedly for all files/folders at same level
-    id_name_dict = {} # A lookup to get the parent name associated with the parent_id
-
+    folder_detail = folders.get(folder_id)
     
-    # Build id_name dict
-    for folder_id, details in folders.items():
+    while folder_detail:
 
-        folder_name = details[0]
+        parent_id = folder_detail[1]
+        parent_name = folder_detail[6]
+        folder_path.append(parent_name)
+        
+        folder_detail = folders.get(parent_id)
+        
+    return folder_path
 
-        if folder_id not in id_name_dict:
-            id_name_dict[folder_id] = folder_name
+def stringify_folder_path(folder_path):
 
-    print("Add path: Building paths")
-    # Build path
-    if single_id is None:
-        print("Building path for all folders")
-        for folder_id, details in folders.items():
+    # Input is a list representing the path of the folder
+    # Path is built from walking upwards from current folder, so string version will be reverse
 
-            current_path = build_path_list_single_folder(folder_id, folders, id_path_dict, id_name_dict)
+    rev_path = list(reversed(folder_path))
+    return " -> ".join(rev_path)
 
-            folders.get(folder_id).append(str(current_path))
+def add_folder_path_to_folder_var(folders):
 
-        print("Example results")
-        id_sample = []
-        for idx, item in enumerate(list(folders)):
-            if idx % 100 == 0:
-                id_sample.append(item)
-        for folder_id in id_sample:
-            print(folder_id, folders.get(folder_id))
+    folder_id_list = folders.keys()
 
-    else:
-        print(f"Building path for single id {single_id}")
-        current_path = build_path_list_single_folder(single_id, folders, id_path_dict, id_name_dict)
+    for folder_id in folder_id_list:
+        folder_path_list = walk_folder_path(folders, folder_id)
+        folder_path_str = stringify_folder_path(folder_path_list)
+        
+        folder_details = folders.get(folder_id)
+        if folder_details:
+            folder_details.append(folder_path_str)
 
-        folders.get(single_id).append(str(current_path)) 
-        print("Example results")
-        print(folders.get(single_id))       
-
+    for folder_id in list(folder_id_list)[0:10]:
+        print(f"Details for {folder_id}: {folders.get(folder_id)}")
 
     return folders
-    
-
-
-def build_path_list_single_folder(folder, folders_collection, id_path_dict, id_name_dict):
-
-    current_path = id_path_dict.get(folder)
-
-    if current_path and 'root' in current_path:
-        
-        return current_path
-    
-    else:
-        # Walk path
-        parent_id = folders_collection[folder][1] # parent_id is 2nd item in details list
-        while parent_id:
-            print(f"Retrieving parent name of id {parent_id}")
-            parent_name = id_name_dict.get(parent_id)
-            print(f"Parent name retrieved: {parent_name}")
-            if parent_name is None:
-                parent_name = 'root'
-            
-            if id_path_dict.get(parent_id) is not None:
-                id_path_dict.get(parent_id).append(parent_name)
-                parent_id = folders_collection[parent_id][1] # Get parent's parent id
-            else:
-                parent_id = None
-            
-        current_path = id_path_dict.get(folder)
-        return current_path
-
-    
-
-
-
 
 def get_documents(db):
 
@@ -272,26 +211,6 @@ def fill_folder_var(folders, rows):
 
     return folders
 
-def build_folder_path(folders):
-
-    # Get folder path
-    print("Building folder path")
-    for folder_id, folder_details in folders.items():
-        folder_path_interim = []
-        parent_id = folder_details[1]
-        
-        while parent_id != '':
-            parent_details = folders.get(parent_id)
-            if parent_details is None:
-                continue
-            else:
-
-                parent_name = parent_details[0]
-                folder_path_interim.append(parent_name)
-        
-        folder_path = "/".join(folder_path_interim)
-        folder_details[6] = folder_path
-
 def summarize_rows(folders, limit=None):
 
     count = 0
@@ -322,6 +241,7 @@ def output_report(folders):
             "Size (KB)",
             "Size (MB)",
             "Size (GB)",
+            "Path",
             "Folder URL",
         ]
         
@@ -336,6 +256,7 @@ def output_report(folders):
             size_kb = folder_details[3]
             size_mb = folder_details[4]
             size_gb = folder_details[5]
+            folder_path = folder_details[7]
             folder_url = f"https://drive.google.com/drive/u/0/folders/{folder_id}"
 
             writer.writerow([
@@ -346,6 +267,7 @@ def output_report(folders):
                 size_kb,
                 size_mb,
                 size_gb,
+                folder_path,
                 folder_url,
             ])
 
@@ -473,6 +395,7 @@ def main():
     print("Adding parent name to folder variable")
     folders = add_parent_name_to_folder_var(folders)
     
+    print('\n*************************\n')
     print("Building path for folders")
     # test_id = '0B30oInLp4i6JYXpnRG1xX0YyaHc' 
     # print(f"info for test folder {test_id}")
@@ -483,13 +406,31 @@ def main():
     # NB: To get print statements within function as func is running, do not store results in var
     # add_path_list_to_folder_var_all_folders(folders, test_id) 
 
-    test_id = '0B30oInLp4i6JeHozYjR5UVF0R1E'
-    print(f"info for test folder {test_id}")
-    print(folders.get(test_id))
-    folders = add_path_list_to_folder_var_all_folders(folders, test_id)
-    print(folders.get(test_id))
-
+    # test_id = '0B30oInLp4i6JeHozYjR5UVF0R1E'
+    # print(f"info for test folder {test_id}")
+    # print(folders.get(test_id))
+    # folders = add_path_list_to_folder_var_all_folders(folders, test_id)
+    # print(folders.get(test_id))
     
+    # test_id = '0B30oInLp4i6JeHozYjR5UVF0R1E' # Nested two levles
+    # walk_folder_path(folders, test_id)
+    # print('\n*************************\n') 
+    
+    # test_id = '1CqkDcdjTakchhxTl_wXfYi3GRFutxdRI' # At root
+    # walk_folder_path(folders, test_id)
+    # print('\n*************************\n')
+
+    # test_id = '0BwHomZPdcm1cT2VVcTFSWGxpdEU' # Nepal, unowned shared at root
+    # walk_folder_path(folders, test_id)
+    # print('\n*************************\n')
+
+    # test_id = '0B30oInLp4i6JYloweGpzRVFxREU' # Nepal subfolder, nested two levels
+    # folder_path = walk_folder_path(folders, test_id)
+    # print(stringify_folder_path(folder_path))
+    # print('\n*************************\n')
+
+    folders = add_folder_path_to_folder_var(folders) 
+
     # summarize_rows(folders, 5)
     # output_report(folders)
     # add_parent_name_to_folder_var(folders)
