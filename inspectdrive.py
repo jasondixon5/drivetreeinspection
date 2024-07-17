@@ -16,52 +16,11 @@ SCOPES = [
           "https://www.googleapis.com/auth/drive.readonly"]
 
 # TODOS:
-# * Look into read operation timeout error; possible need for chunking
-# * Avoid writing headers if not first write to file
-# * Create new script with ability to pass arguments to do things like
-#   create/replace db and do db + output report with one command
 
 
 def main():
   
-  # creds = provide_creds() 
-  # service = build("drive", "v3", credentials=creds)
   
-  # examples = {
-  #   "Folder at root level": "11-l1BkeUwvHg33Il71Nw3aLQoJkA6qnr",
-  #   "File within a folder": '1nYIOcYHOSJJLocOB7JtGfO6g57ITfvoY',
-  #   "Root drive id": '0AH0oInLp4i6JUk9PVA',
-  #   "File at root level": '1CJxjOHX9fnhsVmwB4aR6uBVdHzzwH8KD',
-  #   "Shared folder not owned by drive owner": '0BwHomZPdcm1cT2VVcTFSWGxpdEU',
-  #   "Shared file not owned by drive owner":  '19USGyx8zWOIKlG7OeobJgfAlLk9MlWl1Fl2NqjJxVFo',
-  # }
-  
-  
-  # for desc, file_id in examples.items():
-    
-  #   print(desc)
-  #   query_one_file(service, file_id)
-  #   print("\n")
-
-    # ts = create_timestamp_bookends(10)
-  # qc = create_query_clauses(ts)
-
-  # db_name = "drive_results.db"
-  # table_name = "drive"
-  
-  # # Drop table from db if exists
-  # drop_table(db_name, table_name)
-
-  # # Query api and store results
-  # request_file_info(service=service, query_list=qc)
-
-  # # Print audit info
-  # check_db(db_name, table_name)
-    
-  #request_drive_info(service)
-
-  # get_file_types(service)
-
   print("WARNING: Run summarize script instead of this script.")
   print("Finished script.")
 
@@ -71,15 +30,6 @@ def query_one_file(service, file_id):
 
   q = f"id = {file_id}"
 
-  # results = (
-  #         service.files()
-  #         .list(
-  #             pageSize=1000, 
-  #             fields="files(id, name, parents, mimeType, size, createdTime)",
-  #             q=q,
-  #           )
-  #         .execute()
-  #       )
   results = service.files().get(
     fileId=file_id, 
     fields='id, name, mimeType, createdTime, modifiedTime, parents'
@@ -89,9 +39,6 @@ def query_one_file(service, file_id):
 
   return results
         
-
-  
-
 def create_timestamp_bookends(yearly_queries_cap):
 
   timestamp_bookends = []
@@ -109,7 +56,6 @@ def create_timestamp_bookends(yearly_queries_cap):
 def create_query_clauses(timestamp_list):
 
   non_time_query = "trashed=false and "
-  # timestamp_text_templ = f"createdTime >= '{timestamp_pair[0]}' and createdTime <= {}" 
 
   queries = []
 
@@ -158,7 +104,7 @@ def request_drive_info(service):
       page_token = results.get("nextPageToken")
 
       items = results.get("drives", [])
-      # print(items)
+      
       print(results)
 
       if page_token:
@@ -361,7 +307,6 @@ def check_db(db_name, table_name):
   print(f"Table count for {table_name}")
   print(cur.execute(f"SELECT COUNT(*) FROM {table_name}").fetchall())
   
-  # drive_results = cur.execute(f"SELECT * FROM {table_name} LIMIT 100")
   print("Result sample...\n")
   for row in cur.execute(f"SELECT * FROM {table_name} LIMIT 10"):
     print(row)

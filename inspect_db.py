@@ -4,55 +4,6 @@ import sqlite3
 
 from datetime import datetime
 
-# TODO: Handle edge case of id for root folder (My Drive). Doesn't show up in table but does show up as parent id of folders at root
-# TODO: Decide if need sentinel value in details array to say it's a shared folder (shared but not owned by script runner)
-# TODO: Determine how shared-unowned folders AND documents appear in db
-
-
-# def check_for_root_folder(db):
-
-#     con = sqlite3.connect(db)
-
-#     print("Query for size of drive table")
-#     with con:
-#         query = """SELECT COUNT(*) FROM drive"""
-
-#     cur = con.cursor()
-#     cur.execute(query)
-#     rows = cur.fetchall()
-#     con.close()
-    
-#     for row in rows:
-#         print(row)
-    
-#     con = sqlite3.connect(db)
-#     print("Results of query to db for root drive info")
-#     with con:
-        
-#         query = """SELECT
-#             id
-#         , name
-#         , parents
-#         , mime_type
-#         , is_folder
-#         , size
-#         , created
-#         FROM drive
-#         WHERE name = 'My Drive'
-#         """
-    
-#     cur = con.cursor()
-#     cur.execute(query)
-#     rows = cur.fetchall()
-#     con.close()
-#     for row in rows:
-#         print(row)
-#     print(f"Fetched {len(rows)} folders.")
-
-#     return rows
- 
-
-
 def get_folders(db):
 
     con = sqlite3.connect(db)
@@ -273,69 +224,6 @@ def output_report(folders):
 
     print(f"Finished writing output filename {output_filename}")
 
-
-# def check_root_dir(db):
-
-#     con = sqlite3.connect(db)
-
-#     with con:
-        
-#         query = """SELECT
-#             id
-#         , name
-#         , parents
-#         , mime_type
-#         , is_folder
-#         , size
-#         , created
-#         FROM drive
-#         WHERE id = '0AH0oInLp4i6JUk9PVA'
-#         """
-    
-#     cur = con.cursor()
-#     cur.execute(query)
-#     rows = cur.fetchall()
-#     con.close()
-
-#     print("Query to inspect table contents for root folder.")
-#     print(f"Fetched {len(rows)} folders.")
-
-#     for row in rows:
-#         print(row)
-
-#     return rows
-
-# def check_nepal_shared_folder(db):
-
-#     con = sqlite3.connect(db)
-
-#     with con:
-        
-#         query = """SELECT
-#             id
-#         , name
-#         , parents
-#         , mime_type
-#         , is_folder
-#         , size
-#         , created
-#         FROM drive
-#         WHERE id = '0BwHomZPdcm1cT2VVcTFSWGxpdEU'
-#         """
-    
-#     cur = con.cursor()
-#     cur.execute(query)
-#     rows = cur.fetchall()
-#     con.close()
-
-#     print("Query to inspect table contents for root folder.")
-#     print(f"Fetched {len(rows)} folders.")
-
-#     for row in rows:
-#         print(row)
-
-#     return rows
-
 def check_no_parent_folders(db):
 
     con = sqlite3.connect(db)
@@ -370,16 +258,6 @@ def check_no_parent_folders(db):
 
     return rows
 
-def argumentify():
-
-    """
-    Arguments
-
-    : 
-    """
-
-    parser = argparse.ArgumentParser()
-
 def main():
 
     db = 'drive_results.db'
@@ -394,50 +272,8 @@ def main():
     folders = fill_folder_var(folders, document_rows)
     print("Adding parent name to folder variable")
     folders = add_parent_name_to_folder_var(folders)
-    
-    print('\n*************************\n')
-    print("Building path for folders")
-    # test_id = '0B30oInLp4i6JYXpnRG1xX0YyaHc' 
-    # print(f"info for test folder {test_id}")
-    # print(folders.get(test_id))
-    # parent_of_test_id = '0AH0oInLp4i6JUk9PVA'
-    # print(folders.get(parent_of_test_id))
-    # folders = add_path_list_to_folder_var_all_folders(folders, test_id) 
-    # NB: To get print statements within function as func is running, do not store results in var
-    # add_path_list_to_folder_var_all_folders(folders, test_id) 
-
-    # test_id = '0B30oInLp4i6JeHozYjR5UVF0R1E'
-    # print(f"info for test folder {test_id}")
-    # print(folders.get(test_id))
-    # folders = add_path_list_to_folder_var_all_folders(folders, test_id)
-    # print(folders.get(test_id))
-    
-    # test_id = '0B30oInLp4i6JeHozYjR5UVF0R1E' # Nested two levles
-    # walk_folder_path(folders, test_id)
-    # print('\n*************************\n') 
-    
-    # test_id = '1CqkDcdjTakchhxTl_wXfYi3GRFutxdRI' # At root
-    # walk_folder_path(folders, test_id)
-    # print('\n*************************\n')
-
-    # test_id = '0BwHomZPdcm1cT2VVcTFSWGxpdEU' # Nepal, unowned shared at root
-    # walk_folder_path(folders, test_id)
-    # print('\n*************************\n')
-
-    # test_id = '0B30oInLp4i6JYloweGpzRVFxREU' # Nepal subfolder, nested two levels
-    # folder_path = walk_folder_path(folders, test_id)
-    # print(stringify_folder_path(folder_path))
-    # print('\n*************************\n')
-
     folders = add_folder_path_to_folder_var(folders) 
 
-    # summarize_rows(folders, 5)
-    # output_report(folders)
-    # add_parent_name_to_folder_var(folders)
-    # check_root_dir(db)
-    # check_nepal_shared_folder(db)
-    # check_no_parent_folders(db)
-    
     print("WARNING: Run summarize script instead of this script.")
     print("Finished script.")
     
