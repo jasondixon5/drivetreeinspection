@@ -41,11 +41,27 @@ def set_up_folder_var(rows):
         name = row[1]
         parent_id = row[2]
 
-        folders[id] = [name, parent_id, 0, 0, 0, 0]
+        folders[id] = {
+            "name": name,
+            "parent_id": parent_id,
+            "size_bytes": 0,
+            "size_mb": 0,
+            "size_kb": 0,
+            "size_gb": 0,
+            "parent_name": None,
+        }
 
     # Add default entry
-    folders['0'] = ['root', '', 0, 0, 0, 0]
-
+    folders['root'] = {
+        "name": "root",
+        "parent_id": '',
+        "size_bytes": 0,
+        "size_mb": 0,
+        "size_kb": 0,
+        "size_gb": 0,
+        "parent_name": ''
+    }
+    
     return folders
 
 def add_parent_name_to_folder_var(folders):
@@ -53,14 +69,14 @@ def add_parent_name_to_folder_var(folders):
     errors = set()
     for id, details in folders.items():
         # Add name of parent folder to details array
-        parent_id = details[1]
-        parent_details = folders.get(parent_id, folders.get('0')) # If no details for parent in db, must be root
+        parent_id = details.get("parent_id")
+        parent_details = folders.get(parent_id, folders.get('root')) # If no details for parent in db, must be root
 
         if parent_details is None:
             errors.add(parent_id)        
         else:
-            parent_name = parent_details[0]
-            folders[id].append(parent_name)
+            parent_name = parent_details.get("name")
+            details["parent_name"] = parent_name
             
     if errors:
         print(f"Errors during parent name retrieval: {errors}")
@@ -79,8 +95,8 @@ def walk_folder_path(folders, folder_id):
     
     while folder_detail:
 
-        parent_id = folder_detail[1]
-        parent_name = folder_detail[6]
+        parent_id = folder_detail.get("parent_id")
+        parent_name = folder_detail.get("parent_name")
         folder_path.append(parent_name)
         
         folder_detail = folders.get(parent_id)
@@ -105,8 +121,8 @@ def add_folder_path_to_folder_var(folders):
         
         folder_details = folders.get(folder_id)
         if folder_details:
-            folder_details.append(folder_path_list)
-            folder_details.append(folder_path_str)
+            folder_details["folder_path_list"] = folder_path_list
+            folder_details["folder_path_str"] = folder_path_str
 
     for folder_id in list(folder_id_list)[0:10]:
         print(f"Details for {folder_id}: {folders.get(folder_id)}")
@@ -140,60 +156,7 @@ def get_documents(db):
 
     return rows
 
-def get_size_of_total_docs_in_folder(db):
-
-    """
-    Summarize each folder with the sum of bytes for all docs directly in that folder
-    (e.g., not nested in another subfolder)
-    """
-    
-    print("Querying db to get total size of docs directly in each folder...\n")
-    
-    con = sqlite3.connect(db)
-
-    with con:
-        
-        query = """SELECT
-            parents
-        , sum(size)
-        FROM drive
-        WHERE is_folder = 0
-        GROUP BY parents
-        """
-    
-    cur = con.cursor()
-    cur.execute(query)
-    rows = cur.fetchall()
-    con.close()
-
-    print("Sample of results...\n")
-    if len(rows) > 5:
-        for row in rows[0:5]:
-            print(row)
-    else:
-        for row in rows:
-            print(row)
-    print("\n")
-
-    # Turn row results into dict
-    folder_direct_size_map = {}
-
-    for row in rows:
-        folder_direct_size_map[row[0]] = row[1]
-
-    return folder_direct_size_map
-
-
-def add_direct_doc_size_to_folder_var(folders, folder_direct_size_map):
-
-    for folder_id, folder_details in folders.items():
-
-        direct_doc_size = folder_direct_size_map.get(folder_id, 0)
-        folder_details.append(direct_doc_size)
-
-    return folders
-
-def fill_folder_var(folders, rows):
+def add_direct_doc_size_to_folder_var(folders, rows):
 
     for row in rows:
 
@@ -203,19 +166,19 @@ def fill_folder_var(folders, rows):
         folder = folders.get(folder_id)
         if folder:
             # size is 2nd item in list
-            folder[2] += size
+            folder["size_bytes"] += size
         else:
             # Store in default entry
-            folder = folders['0']
-            folder[2] += size
+            folder = folders['root']
+            folder["size_bytes"] += size
 
     # Calculate size in other than bytes
     for folder_id, folder_details in folders.items():
         
-        byte_size = folder_details[2]
-        folder_details[3] = round(byte_size / 1024, ndigits=2) #KB
-        folder_details[4] = round(byte_size / 1_048_576, ndigits=2) #MB
-        folder_details[5] = round(byte_size / 1_073_741_824, ndigits=2) #GB
+        byte_size = folder_details.get("size_bytes")
+        folder_details["size_kb"] = round(byte_size / 1024, ndigits=2) #KB
+        folder_details["size_mb"] = round(byte_size / 1_048_576, ndigits=2) #MB
+        folder_details["size_gb"] = round(byte_size / 1_073_741_824, ndigits=2) #GB
 
     return folders
 
@@ -245,7 +208,6 @@ def output_report(folders):
             "Folder Name",
             "Parent ID",
             "Parent Name",
-            "Direct Doc Size (bytes)",
             "Size (bytes)",
             "Size (KB)",
             "Size (MB)",
@@ -259,23 +221,21 @@ def output_report(folders):
 
         for folder_id, folder_details in folders.items():
             
-            name = folder_details[0]
-            parent = folder_details[1]
-            parent_name = folder_details[6]
-            direct_doc_size_bytes = folder_details[9]
-            size_bytes = folder_details[2]
-            size_kb = folder_details[3]
-            size_mb = folder_details[4]
-            size_gb = folder_details[5]
-            folder_path = folder_details[8]
-            folder_path_list = str(folder_details[7])
+            name = folder_details.get("name")
+            parent = folder_details.get("parent_id")
+            parent_name = folder_details.get("parent_name")
+            size_bytes = folder_details.get("size_bytes")
+            size_kb = folder_details.get("size_kb")
+            size_mb = folder_details.get("size_mb")
+            size_gb = folder_details.get("size_gb")
+            folder_path = folder_details.get("folder_path_str")
+            folder_path_list = str(folder_details.get("folder_path_list"))
             folder_url = f"https://drive.google.com/drive/u/0/folders/{folder_id}"
 
             writer.writerow([
                 name,
                 parent,
                 parent_name,
-                direct_doc_size_bytes,
                 size_bytes,
                 size_kb,
                 size_mb,
@@ -329,17 +289,15 @@ def main():
 
     folder_rows = get_folders(db)
     document_rows = get_documents(db)
-    folder_direct_size_map = get_size_of_total_docs_in_folder(db)
     
     print("Setting up folder variable")
     folders = set_up_folder_var(folder_rows)
     print("Filling folder variable")
-    folders = fill_folder_var(folders, document_rows)
+    folders = add_direct_doc_size_to_folder_var(folders, document_rows)
     print("Adding parent name to folder variable")
     folders = add_parent_name_to_folder_var(folders)
     folders = add_folder_path_to_folder_var(folders)
     
-    folders = add_direct_doc_size_to_folder_var(folders, folder_direct_size_map)
 
     output_report(folders) 
 
