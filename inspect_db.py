@@ -62,7 +62,10 @@ def add_parent_name_to_folder_var(folders):
             parent_name = parent_details[0]
             folders[id].append(parent_name)
             
-    print(f"Errors during parent name retrieval: {errors}")
+    if errors:
+        print(f"Errors during parent name retrieval: {errors}")
+    else:
+        print("No errors during parent name retrieval")
 
     return folders
 
@@ -102,6 +105,7 @@ def add_folder_path_to_folder_var(folders):
         
         folder_details = folders.get(folder_id)
         if folder_details:
+            folder_details.append(folder_path_list)
             folder_details.append(folder_path_str)
 
     for folder_id in list(folder_id_list)[0:10]:
@@ -135,6 +139,59 @@ def get_documents(db):
     print(f"Fetched {len(rows)} documents (non folders).")
 
     return rows
+
+def get_size_of_total_docs_in_folder(db):
+
+    """
+    Summarize each folder with the sum of bytes for all docs directly in that folder
+    (e.g., not nested in another subfolder)
+    """
+    
+    print("Querying db to get total size of docs directly in each folder...\n")
+    
+    con = sqlite3.connect(db)
+
+    with con:
+        
+        query = """SELECT
+            parents
+        , sum(size)
+        FROM drive
+        WHERE is_folder = 0
+        GROUP BY parents
+        """
+    
+    cur = con.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    con.close()
+
+    print("Sample of results...\n")
+    if len(rows) > 5:
+        for row in rows[0:5]:
+            print(row)
+    else:
+        for row in rows:
+            print(row)
+    print("\n")
+
+    # Turn row results into dict
+    folder_direct_size_map = {}
+
+    for row in rows:
+        folder_direct_size_map[row[0]] = row[1]
+
+    return folder_direct_size_map
+
+
+def add_direct_doc_size_to_folder_var(folders, folder_direct_size_map):
+
+    for folder_id, folder_details in folders.items():
+
+        direct_doc_size = folder_direct_size_map.get(folder_id, 0)
+        folder_details.append(direct_doc_size)
+
+    return folders
 
 def fill_folder_var(folders, rows):
 
@@ -188,11 +245,13 @@ def output_report(folders):
             "Folder Name",
             "Parent ID",
             "Parent Name",
+            "Direct Doc Size (bytes)",
             "Size (bytes)",
             "Size (KB)",
             "Size (MB)",
             "Size (GB)",
             "Path",
+            "Path List",
             "Folder URL",
         ]
         
@@ -203,22 +262,26 @@ def output_report(folders):
             name = folder_details[0]
             parent = folder_details[1]
             parent_name = folder_details[6]
+            direct_doc_size_bytes = folder_details[9]
             size_bytes = folder_details[2]
             size_kb = folder_details[3]
             size_mb = folder_details[4]
             size_gb = folder_details[5]
-            folder_path = folder_details[7]
+            folder_path = folder_details[8]
+            folder_path_list = str(folder_details[7])
             folder_url = f"https://drive.google.com/drive/u/0/folders/{folder_id}"
 
             writer.writerow([
                 name,
                 parent,
                 parent_name,
+                direct_doc_size_bytes,
                 size_bytes,
                 size_kb,
                 size_mb,
                 size_gb,
                 folder_path,
+                folder_path_list,
                 folder_url,
             ])
 
@@ -266,13 +329,19 @@ def main():
 
     folder_rows = get_folders(db)
     document_rows = get_documents(db)
+    folder_direct_size_map = get_size_of_total_docs_in_folder(db)
+    
     print("Setting up folder variable")
     folders = set_up_folder_var(folder_rows)
     print("Filling folder variable")
     folders = fill_folder_var(folders, document_rows)
     print("Adding parent name to folder variable")
     folders = add_parent_name_to_folder_var(folders)
-    folders = add_folder_path_to_folder_var(folders) 
+    folders = add_folder_path_to_folder_var(folders)
+    
+    folders = add_direct_doc_size_to_folder_var(folders, folder_direct_size_map)
+
+    output_report(folders) 
 
     print("WARNING: Run summarize script instead of this script.")
     print("Finished script.")
