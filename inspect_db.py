@@ -27,8 +27,6 @@ def get_folders(db):
     rows = cur.fetchall()
     con.close()
 
-    print(f"Fetched {len(rows)} folders.")
-
     return rows
 
 def set_up_folder_var(rows):
@@ -80,9 +78,7 @@ def add_parent_name_to_folder_var(folders):
             
     if errors:
         print(f"Errors during parent name retrieval: {errors}")
-    else:
-        print("No errors during parent name retrieval")
-
+    
     return folders
 
 def walk_folder_path(folders, folder_id):
@@ -124,9 +120,6 @@ def add_folder_path_to_folder_var(folders):
             folder_details["folder_path_list"] = folder_path_list
             folder_details["folder_path_str"] = folder_path_str
 
-    for folder_id in list(folder_id_list)[0:10]:
-        print(f"Details for {folder_id}: {folders.get(folder_id)}")
-
     return folders
 
 def get_documents(db):
@@ -151,8 +144,6 @@ def get_documents(db):
     cur.execute(query)
     rows = cur.fetchall()
     con.close()
-
-    print(f"Fetched {len(rows)} documents (non folders).")
 
     return rows
 
@@ -185,13 +176,20 @@ def add_direct_doc_size_to_folder_var(folders, rows):
 def summarize_rows(folders, limit=None):
 
     count = 0
-    print(f"Summarizing folders and related info up to limit {limit}")
+    data_summary = []
+
+    if limit is None:
+        limit = 5
+
+    
     for folder, val in folders.items():
-        if limit is not None and count < 0:
+        if count < 0:
             break
         else:
-            print(folder, val)
+            data_summary.append(tuple((folder, val)))
             count -= 1
+
+    return data_summary
 
 def output_report(folders):
 
@@ -273,33 +271,9 @@ def check_no_parent_folders(db):
     rows = cur.fetchall()
     con.close()
 
-    print("Query to inspect table contents for folders without parents.")
-    print(f"Fetched {len(rows)} folders.")
-
-    for row in rows:
-        print(row)
-
     return rows
 
 def main():
-
-    db = 'drive_results.db'
-
-    # check_for_root_folder(db)
-
-    folder_rows = get_folders(db)
-    document_rows = get_documents(db)
-    
-    print("Setting up folder variable")
-    folders = set_up_folder_var(folder_rows)
-    print("Filling folder variable")
-    folders = add_direct_doc_size_to_folder_var(folders, document_rows)
-    print("Adding parent name to folder variable")
-    folders = add_parent_name_to_folder_var(folders)
-    folders = add_folder_path_to_folder_var(folders)
-    
-
-    output_report(folders) 
 
     print("WARNING: Run summarize script instead of this script.")
     print("Finished script.")
