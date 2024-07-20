@@ -21,7 +21,6 @@ from inspectdrive import (
 from inspect_db import (
     add_folder_path_to_folder_var,
     add_parent_name_to_folder_var,
-    fill_folder_var,
     get_documents,
     get_folders, 
     output_report,
@@ -61,20 +60,24 @@ def create_db():
 
     return None
 
-def create_report():
+def create_report(db):
 
     folder_rows = get_folders(db)
     document_rows = get_documents(db)
     folders = set_up_folder_var(folder_rows)
-    folders = fill_folder_var(folders, document_rows)
     folders = add_parent_name_to_folder_var(folders)
     folders = add_folder_path_to_folder_var(folders) 
-    summarize_rows(folders, 5)
+    
+    print("Summary of data to output:\n")
+    data_summary = summarize_rows(folders, 5)
+    for folder, detail in data_summary:
+        print(folder, detail)
+
     output_report(folders)
 
 
 if __name__ == "__main__":
     create_db()
-    create_report()
+    create_report(db)
 
           

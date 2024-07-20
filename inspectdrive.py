@@ -35,8 +35,6 @@ def query_one_file(service, file_id):
     fields='id, name, mimeType, createdTime, modifiedTime, parents'
   ).execute()
 
-  print(results)
-
   return results
         
 def create_timestamp_bookends(yearly_queries_cap):
@@ -104,8 +102,6 @@ def request_drive_info(service):
       page_token = results.get("nextPageToken")
 
       items = results.get("drives", [])
-      
-      print(results)
 
       if page_token:
         call_count += 1
@@ -164,11 +160,10 @@ def get_file_types(service):
     # TODO(developer) - Handle errors from drive API.
     print(f"An error occurred: {error}")
 
-  print("File types")
   file_types = sorted(list(file_types))
-  for ft in file_types:
-    print(ft)
 
+  return file_types
+  
 
 
 def request_file_info(service, query_list):
@@ -296,7 +291,7 @@ def handle_items_db(items):
 
     con.commit()
 
-  print("Finished batch of files.")
+  print("Stored batch of files in db.")
 
 def check_db(db_name, table_name):
 
@@ -304,12 +299,11 @@ def check_db(db_name, table_name):
 
   cur = con.cursor()
 
-  print(f"Table count for {table_name}")
-  print(cur.execute(f"SELECT COUNT(*) FROM {table_name}").fetchall())
-  
-  print("Result sample...\n")
-  for row in cur.execute(f"SELECT * FROM {table_name} LIMIT 10"):
-    print(row)
+  table_row_count = cur.execute(f"SELECT COUNT(*) FROM {table_name}").fetchall()
+  sample_rows = cur.execute(f"SELECT * FROM {table_name} LIMIT 10")
+
+  return table_row_count, sample_rows
+    
   
 def drop_table(db_name, table_name):
   
