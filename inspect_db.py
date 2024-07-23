@@ -49,9 +49,9 @@ def set_up_folder_var(rows):
             "parent_name": None,
         }
 
-    # Add default entry
-    folders['root'] = {
-        "name": "root",
+    # Add default entry for shared items not owned by user
+    folders['shared'] = {
+        "name": "shared",
         "parent_id": '',
         "size_bytes": 0,
         "size_mb": 0,
@@ -68,7 +68,7 @@ def add_parent_name_to_folder_var(folders):
     for id, details in folders.items():
         # Add name of parent folder to details array
         parent_id = details.get("parent_id")
-        parent_details = folders.get(parent_id, folders.get('root')) # If no details for parent in db, must be root
+        parent_details = folders.get(parent_id, folders.get('shared')) # If no details for parent in db, must be root
 
         if parent_details is None:
             errors.add(parent_id)        
@@ -160,7 +160,7 @@ def add_direct_doc_size_to_folder_var(folders, rows):
             folder["size_bytes"] += size
         else:
             # Store in default entry
-            folder = folders['root']
+            folder = folders['shared']
             folder["size_bytes"] += size
 
     # Calculate size in other than bytes
@@ -274,6 +274,22 @@ def check_no_parent_folders(db):
     return rows
 
 def main():
+
+
+    from inspectdrive import DB_NAME
+    db = DB_NAME
+    folder_rows = get_folders(db)
+    document_rows = get_documents(db)
+    folders = set_up_folder_var(folder_rows)
+    folders = add_parent_name_to_folder_var(folders)
+    folders = add_folder_path_to_folder_var(folders) 
+    
+    print("Summary of data to output:\n")
+    data_summary = summarize_rows(folders, 5)
+    for folder, detail in data_summary:
+        print(folder, detail)
+
+    output_report(folders)
 
     print("WARNING: Run summarize script instead of this script.")
     print("Finished script.")
