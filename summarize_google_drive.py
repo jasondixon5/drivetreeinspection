@@ -14,8 +14,11 @@ from inspectdrive import (
     create_query_clauses, 
     create_timestamp_bookends, 
     drop_table, 
+    handle_missing_parents,
     provide_creds, 
-    request_file_info
+    request_file_info,
+    DB_NAME,
+    SCOPES,
 )
 
 from inspect_db import (
@@ -28,35 +31,39 @@ from inspect_db import (
     stringify_folder_path,
     summarize_rows,
     walk_folder_path,
+    write_output_to_db,
 )
+
+# TODO: Handle potential missing crdentials file
 
 db = 'drive_results.db'
 
-# If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/drive.metadata.readonly"]
 
-def create_db():
+def create_db(db, scopes):
   
-    creds = provide_creds() 
+    creds = provide_creds(scopes) 
     service = build("drive", "v3", credentials=creds)
   
     ts = create_timestamp_bookends(10)
     qc = create_query_clauses(ts)
 
-    db_name = "drive_results.db"
     table_name = "drive"
   
     # Drop table from db if exists
-    drop_table(db_name, table_name)
+    drop_table(db, table_name)
 
     # Query api and store results
     print("Reading Google Drive info.")
     request_file_info(service=service, query_list=qc)
 
     # Print audit info  
-    check_db(db_name, table_name)
+    check_db(db, table_name)
 
     print("Finished creating db.")
+
+    print("****HANDLING ANY MISSING PARENT VALUES****")
+    handle_missing_parents(db, service)
+
 
     return None
 
@@ -75,9 +82,40 @@ def create_report(db):
 
     output_report(folders)
 
+def transform(db):
 
+    folder_rows = get_folders(db)
+    document_rows = get_documents(db)
+
+    folders = set_up_folder_var(folder_rows)
+    folders = add_parent_name_to_folder_var(folders)
+    folders = add_folder_path_to_folder_var(folders)
+    
+    return folders
+
+def write_summary_to_file(folders):
+
+    output_report(folders)
+
+def write_summary_to_db(db, folders):
+
+    write_output_to_db(folders, db)
+
+def output_the_data(db, folders):
+
+    write_summary_to_file(folders)
+    write_summary_to_db(db, folders)
+
+def main(db_name=DB_NAME, scopes=SCOPES):
+
+    create_db(DB_NAME, SCOPES)
+    folders = transform(DB_NAME)
+    output_the_data(DB_NAME, folders)
+    
+    print("\nFinished script.\n")
+
+    return 0
+    
 if __name__ == "__main__":
-    create_db()
-    create_report(db)
 
-          
+    main()    

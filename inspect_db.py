@@ -49,9 +49,9 @@ def set_up_folder_var(rows):
             "parent_name": None,
         }
 
-    # Add default entry
-    folders['root'] = {
-        "name": "root",
+    # Add default entry for shared items not owned by user
+    folders['shared'] = {
+        "name": "shared",
         "parent_id": '',
         "size_bytes": 0,
         "size_mb": 0,
@@ -64,21 +64,26 @@ def set_up_folder_var(rows):
 
 def add_parent_name_to_folder_var(folders):
 
-    errors = set()
     for id, details in folders.items():
         # Add name of parent folder to details array
+        
+        # Files with no parent ID can be:
+        # * shared folders unowned by user
+        # * the root folder (My Drive)        
         parent_id = details.get("parent_id")
-        parent_details = folders.get(parent_id, folders.get('root')) # If no details for parent in db, must be root
+        parent_details = None
 
-        if parent_details is None:
-            errors.add(parent_id)        
+        if not parent_id and details.get("name") not in ("My Drive", 'shared'):
+            parent_details = folders.get("shared")
+            details["parent_id"] = "shared" # Not ideal to modify during iter but need for output
         else:
+            parent_details = folders.get(parent_id)
+
+        if parent_details:
             parent_name = parent_details.get("name")
+            # Add parent name to details of the child file we're working on
             details["parent_name"] = parent_name
             
-    if errors:
-        print(f"Errors during parent name retrieval: {errors}")
-    
     return folders
 
 def walk_folder_path(folders, folder_id):
@@ -93,7 +98,8 @@ def walk_folder_path(folders, folder_id):
 
         parent_id = folder_detail.get("parent_id")
         parent_name = folder_detail.get("parent_name")
-        folder_path.append(parent_name)
+        if parent_name:
+            folder_path.append(parent_name)
         
         folder_detail = folders.get(parent_id)
         
@@ -160,7 +166,7 @@ def add_direct_doc_size_to_folder_var(folders, rows):
             folder["size_bytes"] += size
         else:
             # Store in default entry
-            folder = folders['root']
+            folder = folders['shared']
             folder["size_bytes"] += size
 
     # Calculate size in other than bytes
@@ -183,11 +189,11 @@ def summarize_rows(folders, limit=None):
 
     
     for folder, val in folders.items():
-        if count < 0:
+        if count >= limit:
             break
         else:
             data_summary.append(tuple((folder, val)))
-            count -= 1
+            count += 1
 
     return data_summary
 
@@ -196,13 +202,14 @@ def output_report(folders):
     dt = datetime.now().strftime("%Y-%m-%d-%I-%M-%S-%p")
     output_filename = f"inspect_results_{dt}.csv"
 
-    print(f"Creating output filename {output_filename}")
+    print(f"\nCreating output filename {output_filename}\n")
 
     with open(output_filename, 'a', newline='') as csvfile:
 
         writer = csv.writer(csvfile)
 
         headers = [
+            "Folder ID",
             "Folder Name",
             "Parent ID",
             "Parent Name",
@@ -231,6 +238,7 @@ def output_report(folders):
             folder_url = f"https://drive.google.com/drive/u/0/folders/{folder_id}"
 
             writer.writerow([
+                folder_id,
                 name,
                 parent,
                 parent_name,
@@ -243,7 +251,61 @@ def output_report(folders):
                 folder_url,
             ])
 
-    print(f"Finished writing output filename {output_filename}")
+    print(f"\nFinished writing output filename {output_filename}\n")
+
+def write_output_to_db(folders, db):
+
+    table_name = 'folder_summary'
+
+    stored_dt = datetime.now().strftime("%Y-%m-%d-%I-%M-%S-%p")
+    
+
+    print(f"\nWriting output to db {db}, table {table_name}\n")
+
+    con = sqlite3.connect(db)
+    cur = con.cursor()
+
+    cur.execute(f"DROP TABLE IF EXISTS {table_name}")
+    
+    cur.execute(f"CREATE TABLE {table_name}(folder_id, name, parent_id, parent_name, size_bytes, size_kb, size_mb, size_gb, folder_path_str, folder_path_list, folder_url, stored)")
+
+    
+    for folder_id, folder_details in folders.items():
+
+        data = ({
+            "folder_id": folder_id,
+            "name": folder_details.get("name"),
+            "parent_id":  folder_details.get("parent_id"),
+            "parent_name":  folder_details.get("parent_name"),
+            "size_bytes":  folder_details.get("size_bytes"),
+            "size_kb":  folder_details.get("size_kb"),
+            "size_mb":  folder_details.get("size_mb"),
+            "size_gb":  folder_details.get("size_gb"),
+            "folder_path":  folder_details.get("folder_path_str"),
+            "folder_path_list":  str(folder_details.get("folder_path_list")),
+            "folder_url":  f"https://drive.google.com/drive/u/0/folders/{folder_id}",
+            "stored": stored_dt,
+        })
+
+        cur.execute(f"""
+                    INSERT INTO {table_name} VALUES(
+                    :folder_id,
+                    :name,
+                    :parent_id,
+                    :parent_name,
+                    :size_bytes,
+                    :size_kb,
+                    :size_mb,
+                    :size_gb,
+                    :folder_path,
+                    :folder_path_list,
+                    :folder_url,
+                    :stored
+                    )""", data)
+    
+    con.commit()
+            
+    print(f"\nWrite complete.\n")
 
 def check_no_parent_folders(db):
 
