@@ -31,7 +31,10 @@ from inspect_db import (
     stringify_folder_path,
     summarize_rows,
     walk_folder_path,
+    write_output_to_db,
 )
+
+# TODO: Handle potential missing crdentials file
 
 db = 'drive_results.db'
 
@@ -79,7 +82,40 @@ def create_report(db):
 
     output_report(folders)
 
+def transform(db):
 
-if __name__ == "__main__":
+    folder_rows = get_folders(db)
+    document_rows = get_documents(db)
+
+    folders = set_up_folder_var(folder_rows)
+    folders = add_parent_name_to_folder_var(folders)
+    folders = add_folder_path_to_folder_var(folders)
+    
+    return folders
+
+def write_summary_to_file(folders):
+
+    output_report(folders)
+
+def write_summary_to_db(db, folders):
+
+    write_output_to_db(folders, db)
+
+def output_the_data(db, folders):
+
+    write_summary_to_file(folders)
+    write_summary_to_db(db, folders)
+
+def main(db_name=DB_NAME, scopes=SCOPES):
+
     create_db(DB_NAME, SCOPES)
-    create_report(DB_NAME)          
+    folders = transform(DB_NAME)
+    output_the_data(DB_NAME, folders)
+    
+    print("\nFinished script.\n")
+
+    return 0
+    
+if __name__ == "__main__":
+
+    main()    

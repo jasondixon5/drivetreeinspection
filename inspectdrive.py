@@ -20,38 +20,6 @@ DB_NAME = "drive_results.db"
 
 # TODOS:
 
-
-def main():
-    
-    # missing_parents = check_missing_parents(DB_NAME)
-    # for p in missing_parents:
-    #     print(p)
-
-    # print("\n***********\n")
-
-    # creds = provide_creds(SCOPES) 
-    # service = build("drive", "v3", credentials=creds)
-
-    # id_detail_map = query_api_for_missing_parents(missing_parents, service)
-
-    # for parent_id, detail in id_detail_map.items():
-    #     print(parent_id)
-    #     print(detail)
-    #     print("\n")
-
-    # creds = provide_creds(SCOPES) 
-    # service = build("drive", "v3", credentials=creds)
-    # print("****HANDLING ANY MISSING PARENT VALUES****")
-    # handle_missing_parents(DB_NAME, service)
-
-    # print("Checking db for top-level id")
-    # check_db_for_specific_entry(DB_NAME, 'drive', '0AH0oInLp4i6JUk9PVA')
-
-    print("WARNING: Run summarize script instead of this script.")
-    print("Finished script.")
-
-    return 0
-
 def query_one_file(service, file_id):
 
     q = f"id = {file_id}"
@@ -500,6 +468,14 @@ def provide_creds(scopes):
             token.write(creds.to_json())
 
     return creds
+
+def main():
+    
+    print("WARNING: Run summarize script instead of this script.")
+    print("Finished script.")
+
+    return 0
+
 
 if __name__ == "__main__":
     main()
