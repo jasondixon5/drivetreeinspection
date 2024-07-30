@@ -179,6 +179,124 @@ def add_direct_doc_size_to_folder_var(folders, rows):
 
     return folders
 
+def get_child_docs(db, folder_id):
+    """
+    Given a folder id, return its children (including other folders)
+    """
+    
+    if not folder_id:
+        return []
+    
+    try:
+        con = sqlite3.connect(db)
+
+        with con:
+            
+            if folder_id.strip() != 'shared':
+
+                query = f"""SELECT
+                    id
+                    , is_folder
+                    , size
+                    FROM drive
+                    WHERE parents = '{folder_id}'
+                    """
+            else:
+                query = f"""SELECT
+                    id
+                    , is_folder
+                    , size
+                    FROM drive
+                    WHERE parents IS NULL
+                    AND name != 'My Drive'
+                    """
+        
+        cur = con.cursor()
+        cur.execute(query)
+        rows = cur.fetchall()
+        con.close()
+
+        return rows
+    
+    except Exception as e:
+
+        print(f"\nException encountered with folder id {folder_id}\n")
+        print(f"{e}")
+
+        return []
+
+def get_cumulative_folder_size(db, folder_id):
+
+    """
+    Calculate the size of all direct documents in a folder plus all documents nested
+    in its subfolders
+    """
+    
+    cum_size = 0
+    
+    child_docs = get_child_docs(db, folder_id)
+
+    if not child_docs:
+        return 0
+    
+    for child_id, is_folder, size in child_docs:
+
+        if not is_folder:
+            if size:
+                cum_size += int(size)
+        else:
+            cum_size += get_cumulative_folder_size(db, child_id)
+
+    return cum_size
+
+def create_cum_folder_size_map(db, folders):
+
+    cum_size_map = {}
+
+    count = 0
+
+    for folder_id, folder_details in folders.items():
+
+        cum_size_map[folder_id] = get_cumulative_folder_size(db, folder_id)
+
+        count +=1
+
+        if count % 1000 == 0:
+            print(f"Working on count {count}, folder_id {folder_id}")
+
+    # Take another pass to add size of docs in shared folders owned by user
+    print("Finished getting cumulative sizes for all folders except 'shared'")
+    shared_folder_size = get_cumulative_folder_size(db, 'shared')
+    for folder_id, folder_details in folders.items():
+        if folder_details.get("name") == 'My Drive' and not folder_details.get("parent_id"):
+            cum_size_map[folder_id] += shared_folder_size
+
+    return cum_size_map
+
+def add_cumulative_folder_size_to_folders_var(db, folders):
+
+    cum_size_map = create_cum_folder_size_map(db, folders)
+
+    for folder_id, folder_details in folders.items():
+
+        folder_details["folder_cumul_size"] = cum_size_map.get(folder_id)
+
+    return folders
+
+def test_get_cumulative_folder_size(db, folder_id_list):
+
+    print("\nTEST OF CUMULATIVE SIZE CALCULATIONS:\n")
+    test_output = {}
+
+    for folder_id in folder_id_list:
+
+        test_output[folder_id] = get_cumulative_folder_size(db, folder_id)
+
+    for folder_id, cum_size in test_output.items():
+        print(folder_id, ": ", cum_size)
+
+    print("\n")
+
 def summarize_rows(folders, limit=None):
 
     count = 0
@@ -267,7 +385,7 @@ def write_output_to_db(folders, db):
 
     cur.execute(f"DROP TABLE IF EXISTS {table_name}")
     
-    cur.execute(f"CREATE TABLE {table_name}(folder_id, name, parent_id, parent_name, size_bytes, size_kb, size_mb, size_gb, folder_path_str, folder_path_list, folder_url, stored)")
+    cur.execute(f"CREATE TABLE {table_name}(folder_id, name, parent_id, parent_name, cumul_size_bytes, size_bytes, size_kb, size_mb, size_gb, folder_path_str, folder_path_list, folder_url, stored)")
 
     
     for folder_id, folder_details in folders.items():
@@ -277,6 +395,7 @@ def write_output_to_db(folders, db):
             "name": folder_details.get("name"),
             "parent_id":  folder_details.get("parent_id"),
             "parent_name":  folder_details.get("parent_name"),
+            "cumul_size_bytes": folder_details.get("folder_cumul_size"),
             "size_bytes":  folder_details.get("size_bytes"),
             "size_kb":  folder_details.get("size_kb"),
             "size_mb":  folder_details.get("size_mb"),
@@ -293,6 +412,7 @@ def write_output_to_db(folders, db):
                     :name,
                     :parent_id,
                     :parent_name,
+                    :cumul_size_bytes,
                     :size_bytes,
                     :size_kb,
                     :size_mb,
@@ -337,6 +457,30 @@ def check_no_parent_folders(db):
 
 def main():
 
+    from inspectdrive import DB_NAME
+
+    db = DB_NAME
+    
+    folder_rows = get_folders(db)
+    document_rows = get_documents(db)
+
+    print("Setting up folder var")
+    folders = set_up_folder_var(folder_rows)
+
+    print("Adding parent name info") 
+    folders = add_parent_name_to_folder_var(folders)
+    
+    print("Adding folder path info") 
+    folders = add_folder_path_to_folder_var(folders)
+    
+    print("Calculating cumulative folder size info")
+    folders = add_cumulative_folder_size_to_folders_var(db, folders)
+    # output_report(folders)
+    
+    write_output_to_db(folders, db)
+
+    
+    
     print("WARNING: Run summarize script instead of this script.")
     print("Finished script.")
     
