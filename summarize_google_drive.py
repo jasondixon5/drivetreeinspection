@@ -108,7 +108,7 @@ def output_the_data(db, folders):
 
 def main(db_name=DB_NAME, scopes=SCOPES):
 
-    create_db(DB_NAME, SCOPES)
+    # create_db(DB_NAME, SCOPES)
     folders = transform(DB_NAME)
     output_the_data(DB_NAME, folders)
     
