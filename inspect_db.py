@@ -207,7 +207,7 @@ def get_child_docs(db, folder_id):
                     , is_folder
                     , size
                     FROM drive
-                    WHERE parents IS NULL
+                    WHERE (parents IS NULL OR parents = '')
                     AND name != 'My Drive'
                     """
         
@@ -225,13 +225,18 @@ def get_child_docs(db, folder_id):
 
         return []
 
-def get_cumulative_folder_size(db, folder_id):
+def get_cumulative_folder_size(db, folder_id, cum_size_map):
 
     """
     Calculate the size of all direct documents in a folder plus all documents nested
     in its subfolders
     """
     
+    # Check if already stored size
+    if folder_id in cum_size_map.keys():
+        return cum_size_map.get(folder_id)
+    
+    # Not stored, so calculate cumulative size
     cum_size = 0
     
     child_docs = get_child_docs(db, folder_id)
@@ -241,11 +246,21 @@ def get_cumulative_folder_size(db, folder_id):
     
     for child_id, is_folder, size in child_docs:
 
-        if not is_folder:
+        if is_folder:
+            
+            # Check if already have child folder's size stored
+            if cum_size_map.get(child_id):
+                cum_size += cum_size_map.get(child_id)
+            # if not, calculate
+            else:
+                cum_size += get_cumulative_folder_size(db, child_id, cum_size_map)
+
+        # Child is not a folder so add it to cumulative size
+        else:
             if size:
                 cum_size += int(size)
-        else:
-            cum_size += get_cumulative_folder_size(db, child_id)
+
+    cum_size_map[folder_id] = cum_size
 
     return cum_size
 
@@ -257,7 +272,7 @@ def create_cum_folder_size_map(db, folders):
 
     for folder_id, folder_details in folders.items():
 
-        cum_size_map[folder_id] = get_cumulative_folder_size(db, folder_id)
+        cum_size_map[folder_id] = get_cumulative_folder_size(db, folder_id, cum_size_map)
 
         count +=1
 
@@ -265,11 +280,7 @@ def create_cum_folder_size_map(db, folders):
             print(f"Working on count {count}, folder_id {folder_id}")
 
     # Take another pass to add size of docs in shared folders owned by user
-    print("Finished getting cumulative sizes for all folders except 'shared'")
-    shared_folder_size = get_cumulative_folder_size(db, 'shared')
-    for folder_id, folder_details in folders.items():
-        if folder_details.get("name") == 'My Drive' and not folder_details.get("parent_id"):
-            cum_size_map[folder_id] += shared_folder_size
+    print("Finished getting cumulative sizes for folders")
 
     return cum_size_map
 
@@ -296,6 +307,36 @@ def test_get_cumulative_folder_size(db, folder_id_list):
         print(folder_id, ": ", cum_size)
 
     print("\n")
+
+def test_create_cumulative_size_map(db, folders):
+
+    cum_size_map = create_cum_folder_size_map(db, folders)
+
+    dt = datetime.now().strftime("%Y-%m-%d-%I-%M-%S-%p")
+    output_filename = f"cum_size_map_{dt}.csv"
+
+    print(f"\nCreating output filename {output_filename}\n")
+
+    with open(output_filename, 'a', newline='') as csvfile:
+
+        writer = csv.writer(csvfile)
+
+        headers = [
+            "Folder ID",
+            "Cumul Size",
+        ]
+        
+        writer.writerow(headers)        
+
+        for folder_id, size in cum_size_map.items():
+
+            writer.writerow([
+                folder_id,
+                size,
+            ])
+
+    print(f"\nFinished writing output filename {output_filename}\n")
+
 
 def summarize_rows(folders, limit=None):
 
@@ -331,6 +372,7 @@ def output_report(folders):
             "Folder Name",
             "Parent ID",
             "Parent Name",
+            "Cum Size (bytes)",
             "Size (bytes)",
             "Size (KB)",
             "Size (MB)",
@@ -347,6 +389,7 @@ def output_report(folders):
             name = folder_details.get("name")
             parent = folder_details.get("parent_id")
             parent_name = folder_details.get("parent_name")
+            cum_size_bytes = folder_details.get("folder_cumul_size"),
             size_bytes = folder_details.get("size_bytes")
             size_kb = folder_details.get("size_kb")
             size_mb = folder_details.get("size_mb")
@@ -360,6 +403,7 @@ def output_report(folders):
                 name,
                 parent,
                 parent_name,
+                cum_size_bytes,
                 size_bytes,
                 size_kb,
                 size_mb,
@@ -475,8 +519,8 @@ def main():
     
     print("Calculating cumulative folder size info")
     folders = add_cumulative_folder_size_to_folders_var(db, folders)
-    # output_report(folders)
     
+    output_report(folders)
     write_output_to_db(folders, db)
 
     
