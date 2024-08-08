@@ -22,6 +22,7 @@ from inspectdrive import (
 )
 
 from inspect_db import (
+    add_cumulative_folder_size_to_folders_var,
     add_folder_path_to_folder_var,
     add_parent_name_to_folder_var,
     get_documents,
@@ -67,29 +68,22 @@ def create_db(db, scopes):
 
     return None
 
-def create_report(db):
-
-    folder_rows = get_folders(db)
-    document_rows = get_documents(db)
-    folders = set_up_folder_var(folder_rows)
-    folders = add_parent_name_to_folder_var(folders)
-    folders = add_folder_path_to_folder_var(folders) 
-    
-    print("Summary of data to output:\n")
-    data_summary = summarize_rows(folders, 5)
-    for folder, detail in data_summary:
-        print(folder, detail)
-
-    output_report(folders)
-
 def transform(db):
 
     folder_rows = get_folders(db)
     document_rows = get_documents(db)
 
+    print("Setting up folder info")
     folders = set_up_folder_var(folder_rows)
+
+    print("Adding parent name info") 
     folders = add_parent_name_to_folder_var(folders)
+    
+    print("Adding folder path info") 
     folders = add_folder_path_to_folder_var(folders)
+    
+    print("Calculating cumulative folder size info")
+    folders = add_cumulative_folder_size_to_folders_var(db, folders)
     
     return folders
 
@@ -103,12 +97,13 @@ def write_summary_to_db(db, folders):
 
 def output_the_data(db, folders):
 
-    write_summary_to_file(folders)
     write_summary_to_db(db, folders)
+    write_summary_to_file(folders)
+    
 
 def main(db_name=DB_NAME, scopes=SCOPES):
 
-    # create_db(DB_NAME, SCOPES)
+    create_db(DB_NAME, SCOPES)
     folders = transform(DB_NAME)
     output_the_data(DB_NAME, folders)
     
