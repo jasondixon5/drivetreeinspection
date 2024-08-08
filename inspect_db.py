@@ -501,30 +501,6 @@ def check_no_parent_folders(db):
 
 def main():
 
-    from inspectdrive import DB_NAME
-
-    db = DB_NAME
-    
-    folder_rows = get_folders(db)
-    document_rows = get_documents(db)
-
-    print("Setting up folder var")
-    folders = set_up_folder_var(folder_rows)
-
-    print("Adding parent name info") 
-    folders = add_parent_name_to_folder_var(folders)
-    
-    print("Adding folder path info") 
-    folders = add_folder_path_to_folder_var(folders)
-    
-    print("Calculating cumulative folder size info")
-    folders = add_cumulative_folder_size_to_folders_var(db, folders)
-    
-    output_report(folders)
-    write_output_to_db(folders, db)
-
-    
-    
     print("WARNING: Run summarize script instead of this script.")
     print("Finished script.")
     
